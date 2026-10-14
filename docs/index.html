@@ -219,6 +219,13 @@
     .card-task.id-missing { border-left-color: #b91c1c; }
     .field-line.id-missing-line span,
     .field-line.id-missing-line strong { color: #b91c1c; }
+    .no-induction-card {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-left: 5px solid #b91c1c;
+    }
+    .no-induction-card .fw-bold,
+    .no-induction-card .small { color: #b91c1c; }
     .field-line strong {
       text-align: right;
       overflow-wrap: anywhere;
@@ -945,9 +952,9 @@
       const box = document.getElementById('inductionResults');
       if (!records.length) {
         box.innerHTML = `
-          <div class="card card-custom p-4 text-center">
+          <div class="card card-custom no-induction-card p-4 text-center">
             <div class="fw-bold">No induction found</div>
-            <div class="text-muted small">Nothing matches ${escapeHtml(query)}.</div>
+            <div class="small">Nothing matches ${escapeHtml(query)}.</div>
           </div>`;
         return;
       }
