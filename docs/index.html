@@ -216,6 +216,9 @@
       font-size: 0.86rem;
     }
     .equip-line span:first-child { color: #64748b; }
+    .card-task.id-missing { border-left-color: #b91c1c; }
+    .field-line.id-missing-line span,
+    .field-line.id-missing-line strong { color: #b91c1c; }
     .field-line strong {
       text-align: right;
       overflow-wrap: anywhere;
@@ -948,16 +951,20 @@
           </div>`;
         return;
       }
-      const line = (label, value) => `<div class="equip-line field-line"><span>${label}</span><strong>${escapeHtml(value || "—")}</strong></div>`;
+      const missingId = (value) => {
+        const text = String(value || "").trim().toLowerCase();
+        return !text || text === "na" || text === "n/a" || text === "not available" || text === "nil";
+      };
+      const line = (label, value, missing) => `<div class="equip-line field-line${missing ? " id-missing-line" : ""}"><span>${label}</span><strong>${escapeHtml(value || "—")}</strong></div>`;
       box.innerHTML = records.map(row => `
-          <div class="card card-custom card-task p-3 mb-2">
+          <div class="card card-custom card-task p-3 mb-2${missingId(row.idNumber) ? " id-missing" : ""}">
             <div class="task-top">
               <div class="task-id"><span class="fw-bold text-dark">${escapeHtml(row.name || "Employee")}</span></div>
             </div>
             ${line("S/N", row.serial)}
             ${line("Name", row.name)}
             ${line("Sticker No.", row.sticker)}
-            ${line("ID", row.idNumber)}
+            ${line("ID", row.idNumber, missingId(row.idNumber))}
             ${line("Position / Designation", row.position)}
             ${line("Day", row.day)}
             ${line("Month", row.month)}
