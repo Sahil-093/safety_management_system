@@ -145,6 +145,24 @@ function inductionPhotoFolder_(create) {
   return DriveApp.createFolder(INDUCTION_PHOTO_FOLDER);
 }
 
+function inductionPhotoFolderLink_() {
+  try {
+    const folder = inductionPhotoFolder_(true);
+    try {
+      folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (err) {}
+    let email = "";
+    try { email = Session.getEffectiveUser().getEmail(); } catch (err) {}
+    return { success: true, url: folder.getUrl(), name: folder.getName(), email: email };
+  } catch (err) {
+    const message = String(err);
+    if (/permission|authorization|drive/i.test(message)) {
+      return { success: false, message: "Google Drive access is needed. Open the Apps Script project once and allow Drive." };
+    }
+    return { success: false, message: message };
+  }
+}
+
 function inductionPhotoFileName_(serial, idNumber) {
   const serialText = String(serial || "").trim();
   if (serialText) return "sn-" + serialText + ".jpg";

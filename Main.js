@@ -67,6 +67,8 @@ function apiResponse_(params) {
       result = deleteInductionRecord(payload);
     } else if (params.action === "inductionPhoto") {
       result = uploadInductionPhoto(payload);
+    } else if (params.action === "inductionPhotoFolder") {
+      result = inductionPhotoFolderLink_();
     } else {
       result = { success: false, message: "Unknown action." };
     }
