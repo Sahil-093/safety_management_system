@@ -1346,9 +1346,11 @@
               </div>
             </div>
             ${line("Name", row.name)}
+            ${line("Employee ID", row.employeeCode)}
+            ${line("Badge No.", row.badge)}
             ${roster ? "" : line("S/N", row.serial)}
             ${roster ? "" : line("Sticker No.", row.sticker)}
-            ${line(roster ? "Employee ID/Iqama" : "ID", row.idNumber, missingId(row.idNumber))}
+            ${line("ID / Iqama", row.idNumber, missingId(row.idNumber))}
             ${line(roster ? "Employee Profession" : "Position / Designation", row.position)}
             ${roster ? "" : line("Day", row.day)}
             ${roster ? "" : line("Month", row.month)}

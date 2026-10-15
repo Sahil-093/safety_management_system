@@ -115,9 +115,10 @@ function listInductionEmployees() {
 function inductionQueryHit_(name, id, q, qDigits) {
   const nameHit = String(name || "").toLowerCase().indexOf(q) !== -1;
   const idDigits = String(id || "").replace(/\D/g, "");
+  const digitsOnly = qDigits.length > 0 && !/[a-z]/i.test(q);
   let idHit = false;
-  if (id && qDigits.length >= 8) idHit = idDigits === qDigits;
-  else if (id && qDigits.length >= 2) idHit = idDigits.indexOf(qDigits) !== -1;
+  if (digitsOnly && id && qDigits.length >= 8) idHit = idDigits === qDigits;
+  else if (digitsOnly && id && qDigits.length >= 2) idHit = idDigits.indexOf(qDigits) !== -1;
   else if (id) idHit = String(id).toLowerCase().indexOf(q) !== -1;
   return nameHit || idHit;
 }
@@ -154,13 +155,15 @@ function searchInductionLog(query) {
   const extras = [];
   roster.forEach(function (person) {
     const idDigits = String(person.idNumber || "").replace(/\D/g, "");
-    const hit = inductionQueryHit_(person.name, person.idNumber, q, qDigits);
+    const hit = rosterQueryHit_(person, q, qDigits);
     if (idDigits && inductionIds[idDigits]) {
       (byId[idDigits] || []).forEach(function (rec) {
         if (person.photoUrl) rec.photoUrl = person.photoUrl;
         if (person.contact) rec.contact = person.contact;
         if (person.email) rec.email = person.email;
         if (person.submittedBy) rec.submittedBy = person.submittedBy;
+        if (person.employeeCode) rec.employeeCode = person.employeeCode;
+        if (person.badge) rec.badge = person.badge;
         if (hit && !seen[rec.sheetRow]) {
           records.push(rec);
           seen[rec.sheetRow] = true;
@@ -406,7 +409,7 @@ function deleteInductionRecord(formData) {
 }
 
 var EMPLOYEE_SPREADSHEET_ID = "1KhkV4-yBQi_PgYedq0VZaTPhviB2_zzxRrdKjJk-VIg";
-var EMPLOYEE_SHEET_GID = 1794678974;
+var EMPLOYEE_SHEET_GID = 1869153942;
 
 function employeeRosterTab_(ss) {
   const sheets = ss.getSheets();
@@ -455,6 +458,15 @@ function employeePhotoUrl_(value) {
   return "";
 }
 
+function rosterQueryHit_(person, q, qDigits) {
+  if (inductionQueryHit_(person.name, person.idNumber, q, qDigits)) return true;
+  const code = String(person.employeeCode || "").toLowerCase();
+  const badge = String(person.badge || "").toLowerCase();
+  if (code && code.indexOf(q) !== -1) return true;
+  if (badge && badge.indexOf(q) !== -1) return true;
+  return false;
+}
+
 function readEmployeeRoster_() {
   let rows = [];
   try { rows = readEmployeeRosterRows_(); } catch (err) { return []; }
@@ -480,6 +492,8 @@ function readEmployeeRoster_() {
       name: name,
       sticker: "",
       idNumber: idNumber,
+      employeeCode: String(employeeCell_(rows[i], map, "employee id") || "").trim(),
+      badge: String(employeeCell_(rows[i], map, "badge no.") || "").trim(),
       position: String(employeeCell_(rows[i], map, "employee profession") || "").trim(),
       day: "",
       month: "",
