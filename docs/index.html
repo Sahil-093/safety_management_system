@@ -394,6 +394,39 @@
       color: #b91c1c;
       border-bottom: 2px solid #fecaca;
     }
+    .camera-capture {
+      position: fixed;
+      inset: 0;
+      z-index: 1060;
+      background: rgba(15, 23, 42, 0.78);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .camera-card {
+      width: min(420px, 100%);
+      background: #0f172a;
+      color: #fff;
+      border-radius: 16px;
+      padding: 12px;
+    }
+    .camera-card video,
+    .camera-card img {
+      width: 100%;
+      max-height: 62vh;
+      border-radius: 12px;
+      background: #000;
+      object-fit: cover;
+    }
+    .camera-card video.camera-mirror { transform: scaleX(-1); }
+    .camera-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 12px;
+    }
     .card-task.id-missing { border-left-color: #b91c1c; }
     .field-line.id-missing-line span,
     .field-line.id-missing-line strong { color: #b91c1c; }
@@ -859,6 +892,20 @@
         <button type="button" class="btn btn-portal-primary px-3" id="btnNewInduction" onclick="startNewInduction()">New+</button>
       </div>
       <input type="file" id="inductionPhotoInput" accept="image/*" hidden onchange="saveInductionPhoto(this)">
+      <div id="cameraCapture" class="camera-capture" style="display: none;">
+        <div class="camera-card">
+          <video id="cameraVideo" playsinline autoplay muted></video>
+          <img id="cameraStill" alt="Captured photo" style="display: none;">
+          <div id="cameraError" class="small text-center mt-2"></div>
+          <div class="camera-actions">
+            <button type="button" class="btn btn-sm btn-light" onclick="closeInductionCamera()">Cancel</button>
+            <button type="button" class="btn btn-sm btn-light" id="cameraFlip" onclick="flipInductionCamera()">Flip</button>
+            <button type="button" class="btn btn-sm btn-portal-primary" id="cameraShoot" onclick="shootInductionCamera()">Capture</button>
+            <button type="button" class="btn btn-sm btn-light" id="cameraRetake" style="display: none;" onclick="retakeInductionCamera()">Retake</button>
+            <button type="button" class="btn btn-sm btn-portal-primary" id="cameraUse" style="display: none;" onclick="useInductionCamera()">Use photo</button>
+          </div>
+        </div>
+      </div>
 
       <div class="card card-custom p-3 mb-3" id="inductionFormCard" style="display: none;">
         <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">
@@ -1284,7 +1331,7 @@
         if (!missing && (value === undefined || value === null || String(value).trim() === "")) return "";
         return `<div class="equip-line field-line${missing ? " id-missing-line" : ""}"><span>${label}</span><strong>${escapeHtml(value || "—")}</strong></div>`;
       };
-      box.innerHTML = records.map(row => {
+      box.innerHTML = records.map((row, index) => {
         const roster = row.source === "roster" || row.inducted === false;
         const inducted = row.inducted !== false && !roster;
         const canEdit = !roster && Number(row.sheetRow) >= 3;
@@ -1313,14 +1360,15 @@
             ${roster ? "" : line("Notes", row.notes)}
             ${line("Submitted by", row.submittedBy)}
             ${roster ? line("Timestamp", row.submittedAt) : ""}
-            ${canEdit ? `<div class="task-foot">
+            <div class="task-foot">
               <span class="text-muted small"></span>
               <div class="d-flex flex-wrap gap-2 justify-content-end">
-                <button type="button" class="btn btn-sm btn-light border py-1 px-2" data-photo-row="${Number(row.sheetRow)}" onclick="chooseInductionPhoto(${Number(row.sheetRow)})">Upload picture</button>
+                ${canEdit ? `<button type="button" class="btn btn-sm btn-light border py-1 px-2" data-photo-row="${Number(row.sheetRow)}" onclick="chooseInductionPhoto(${Number(row.sheetRow)})">Upload picture</button>
+                <button type="button" class="btn btn-sm btn-light border py-1 px-2" data-camera-row="${Number(row.sheetRow)}" onclick="openInductionCamera(${Number(row.sheetRow)})">Camera</button>
                 <button type="button" class="btn btn-sm btn-portal-danger py-1 px-3" onclick="deleteInduction(${Number(row.sheetRow)})">Delete</button>
-                <button type="button" class="btn btn-sm btn-portal-primary py-1 px-3" onclick="openInductionUpdate(${Number(row.sheetRow)})">Update</button>
+                <button type="button" class="btn btn-sm btn-portal-primary py-1 px-3" onclick="openInductionUpdate(${Number(row.sheetRow)})">Update</button>` : `<button type="button" class="btn btn-sm btn-portal-primary py-1 px-3" onclick="startInductionFromRoster(${index})">New induction</button>`}
               </div>
-            </div>` : ""}
+            </div>
           </div>`;
       }).join("");
       paintInductionQr(box);
@@ -1381,16 +1429,27 @@
       });
     }
 
-    function saveInductionPhoto(input) {
-      const file = input.files && input.files[0];
+    let cameraStream = null;
+    let cameraFacing = "environment";
+    let cameraShot = "";
+
+    function photoButtons_(sheetRow) {
+      return Array.from(document.querySelectorAll("[data-photo-row=\"" + Number(sheetRow) + "\"], [data-camera-row=\"" + Number(sheetRow) + "\"]"));
+    }
+
+    function setPhotoButtons_(sheetRow, busy) {
+      photoButtons_(sheetRow).forEach(button => {
+        button.disabled = busy;
+        if (button.hasAttribute("data-photo-row")) button.innerText = busy ? "Uploading..." : "Upload picture";
+        if (button.hasAttribute("data-camera-row")) button.innerText = busy ? "Uploading..." : "Camera";
+      });
+    }
+
+    function uploadInductionImage_(image) {
       const row = inductionRecords.find(item => item.sheetRow === inductionPhotoRow);
-      if (!file || !row) return;
-      const button = document.querySelector("[data-photo-row=\"" + Number(row.sheetRow) + "\"]");
-      if (button) {
-        button.disabled = true;
-        button.innerText = "Uploading...";
-      }
-      fileToJpeg_(file).then(image => callApiPost("inductionPhoto", {
+      if (!image || !row) return;
+      setPhotoButtons_(row.sheetRow, true);
+      callApiPost("inductionPhoto", {
         payload: JSON.stringify({
           sheetRow: row.sheetRow,
           originalName: row.name || "",
@@ -1398,11 +1457,8 @@
           originalSerial: row.serial || "",
           image: image
         })
-      })).then(res => {
-        if (button) {
-          button.disabled = false;
-          button.innerText = "Upload picture";
-        }
+      }).then(res => {
+        setPhotoButtons_(row.sheetRow, false);
         if (res && res.success && res.photoUrl) {
           row.photoUrl = res.photoUrl;
           renderInductionCards(inductionRecords, document.getElementById("inductionSearch").value.trim());
@@ -1410,12 +1466,120 @@
           alert("Error: " + ((res && res.message) || "Could not save the picture"));
         }
       }).catch(err => {
-        if (button) {
-          button.disabled = false;
-          button.innerText = "Upload picture";
-        }
+        setPhotoButtons_(row.sheetRow, false);
         alert("Could not save the picture: " + err.toString());
       });
+    }
+
+    function saveInductionPhoto(input) {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      fileToJpeg_(file).then(uploadInductionImage_).catch(err => alert(err.message || "Could not read that picture"));
+    }
+
+    function showCameraLive_(live) {
+      document.getElementById("cameraVideo").style.display = live ? "block" : "none";
+      document.getElementById("cameraStill").style.display = live ? "none" : "block";
+      document.getElementById("cameraShoot").style.display = live ? "" : "none";
+      document.getElementById("cameraFlip").style.display = live ? "" : "none";
+      document.getElementById("cameraUse").style.display = live ? "none" : "";
+      document.getElementById("cameraRetake").style.display = live ? "none" : "";
+    }
+
+    function stopInductionCamera() {
+      if (!cameraStream) return;
+      cameraStream.getTracks().forEach(track => track.stop());
+      cameraStream = null;
+    }
+
+    function startInductionCamera() {
+      stopInductionCamera();
+      const error = document.getElementById("cameraError");
+      error.textContent = "";
+      const video = document.getElementById("cameraVideo");
+      video.classList.toggle("camera-mirror", cameraFacing === "user");
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        error.textContent = "Camera is not available here. Use Upload picture.";
+        return;
+      }
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: cameraFacing } }, audio: false })
+        .then(stream => {
+          cameraStream = stream;
+          video.srcObject = stream;
+          return video.play();
+        })
+        .catch(() => {
+          error.textContent = "Allow the camera, or use Upload picture.";
+        });
+    }
+
+    function openInductionCamera(sheetRow) {
+      inductionPhotoRow = sheetRow;
+      cameraShot = "";
+      document.getElementById("cameraCapture").style.display = "flex";
+      showCameraLive_(true);
+      startInductionCamera();
+    }
+
+    function closeInductionCamera() {
+      stopInductionCamera();
+      cameraShot = "";
+      document.getElementById("cameraCapture").style.display = "none";
+    }
+
+    function flipInductionCamera() {
+      cameraFacing = cameraFacing === "environment" ? "user" : "environment";
+      startInductionCamera();
+    }
+
+    function shootInductionCamera() {
+      const video = document.getElementById("cameraVideo");
+      if (!video.videoWidth) return;
+      const max = 480;
+      const scale = Math.min(1, max / Math.max(video.videoWidth, video.videoHeight));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+      canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+      const ctx = canvas.getContext("2d");
+      if (cameraFacing === "user") {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      }
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      let quality = 0.72;
+      let data = canvas.toDataURL("image/jpeg", quality);
+      while (data.length > 90000 && quality > 0.4) {
+        quality -= 0.08;
+        data = canvas.toDataURL("image/jpeg", quality);
+      }
+      cameraShot = data.split(",")[1];
+      document.getElementById("cameraStill").src = data;
+      showCameraLive_(false);
+      stopInductionCamera();
+    }
+
+    function retakeInductionCamera() {
+      cameraShot = "";
+      showCameraLive_(true);
+      startInductionCamera();
+    }
+
+    function useInductionCamera() {
+      const image = cameraShot;
+      if (!image) return;
+      closeInductionCamera();
+      uploadInductionImage_(image);
+    }
+
+    function startInductionFromRoster(index) {
+      const row = inductionRecords[index];
+      if (!row) return;
+      startNewInduction();
+      document.getElementById("indName").value = row.name || "";
+      document.getElementById("indId").value = row.idNumber || "";
+      document.getElementById("indPosition").value = row.position || "";
+      document.getElementById("indCompany").value = row.company || "";
+      document.getElementById("inductionFormCard").scrollIntoView({ block: "start" });
     }
 
     function setInductionMode(editing) {
