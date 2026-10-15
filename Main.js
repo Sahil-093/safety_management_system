@@ -51,6 +51,8 @@ function apiResponse_(params) {
       result = recordInduction(payload, user);
     } else if (params.action === "inductionUpdate") {
       result = updateInductionRecord(payload);
+    } else if (params.action === "inductionDelete") {
+      result = deleteInductionRecord(payload);
     } else {
       result = { success: false, message: "Unknown action." };
     }

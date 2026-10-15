@@ -200,3 +200,29 @@ function updateInductionRecord(formData) {
     return inductionWriteError_(err);
   }
 }
+
+function deleteInductionRecord(formData) {
+  try {
+    const row = parseInt(formData.sheetRow, 10);
+    if (!row || row < 3) return { success: false, message: "Invalid induction row." };
+
+    const ss = SpreadsheetApp.openById(INDUCTION_SPREADSHEET_ID);
+    const sheet = inductionTab_(ss);
+    if (!sheet) return { success: false, message: "Induction sheet tab was not found." };
+
+    const currentName = String(sheet.getRange(row, 2).getValue() || "").trim();
+    const currentId = inductionIdText_(sheet.getRange(row, 4).getValue());
+    const currentSerial = String(sheet.getRange(row, 1).getValue() || "").trim();
+    const sameRow = currentName === String(formData.originalName || "").trim() &&
+      currentId === inductionIdText_(formData.originalId) &&
+      currentSerial === String(formData.originalSerial || "").trim();
+    if (!sameRow) {
+      return { success: false, message: "This row changed in the sheet. Search again and try again." };
+    }
+
+    sheet.deleteRow(row);
+    return { success: true, message: "Induction deleted." };
+  } catch (err) {
+    return inductionWriteError_(err);
+  }
+}

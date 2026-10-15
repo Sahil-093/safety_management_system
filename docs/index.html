@@ -85,6 +85,16 @@
       background-color: var(--primary-dark);
       color: #ffffff;
     }
+    .btn-portal-danger {
+      background-color: #ffffff;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+      font-weight: 600;
+    }
+    .btn-portal-danger:hover, .btn-portal-danger:focus {
+      background-color: #fef2f2;
+      color: #b91c1c;
+    }
     .nav-pills .nav-link {
       color: #64748b;
       font-weight: 600;
@@ -981,7 +991,10 @@
             ${line("Notes", row.notes)}
             <div class="task-foot">
               <span class="text-muted small"></span>
-              <button type="button" class="btn btn-sm btn-portal-primary py-1 px-3" onclick="openInductionUpdate(${Number(row.sheetRow)})">Update</button>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-portal-danger py-1 px-3" onclick="deleteInduction(${Number(row.sheetRow)})">Delete</button>
+                <button type="button" class="btn btn-sm btn-portal-primary py-1 px-3" onclick="openInductionUpdate(${Number(row.sheetRow)})">Update</button>
+              </div>
             </div>
           </div>`).join("");
     }
@@ -1015,6 +1028,35 @@
       setInductionMode(true);
       toggleInductionForm(true);
       document.getElementById('inductionFormCard').scrollIntoView({ block: "start" });
+    }
+
+    function deleteInduction(sheetRow) {
+      const row = inductionRecords.find(item => item.sheetRow === sheetRow);
+      if (!row) return;
+      const who = (row.name || "this employee") + (row.serial ? ", S/N " + row.serial : "");
+      if (!confirm("Delete induction for " + who + "? This cannot be undone.")) return;
+      callApi("inductionDelete", {
+        payload: JSON.stringify({
+          sheetRow: row.sheetRow,
+          originalName: row.name || "",
+          originalId: row.idNumber || "",
+          originalSerial: row.serial || ""
+        })
+      })
+        .then(res => {
+          if (res && res.success) {
+            if (String(document.getElementById('indSheetRow').value) === String(row.sheetRow)) {
+              document.getElementById('inductionForm').reset();
+              document.getElementById('indSheetRow').value = "";
+              setInductionMode(false);
+              toggleInductionForm(false);
+            }
+            searchInduction(document.getElementById('inductionSearch').value.trim());
+          } else {
+            alert("Error: " + ((res && res.message) || "Could not delete"));
+          }
+        })
+        .catch(err => alert("Could not delete: " + err.toString()));
     }
 
     function toggleInductionForm(forceOpen) {
