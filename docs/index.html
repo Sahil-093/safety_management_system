@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="HSE Portal">
   <title>HSE Inspection & Compliance Portal</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" href="icon-192.png" type="image/png">
+  <link rel="icon" href="alkharafi-logo.png" type="image/png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -498,6 +498,11 @@
     .id-qr img, .id-qr canvas { width: 72px; height: 72px; }
     .id-back .id-top { height: 64px; }
     .id-mark { margin-top: -48px; }
+    .id-gear, .id-mark img, .brand-logo { object-fit: contain; display: block; }
+    .id-gear { width: 54px; height: 54px; }
+    .id-mark img { width: 78px; height: 78px; }
+    .brand-logo { width: 40px; height: 40px; }
+    .login-logo { width: 76px; height: 76px; object-fit: contain; }
     .id-terms-title {
       text-align: center;
       font-weight: 800;
@@ -563,7 +568,7 @@
   <div id="loginSection" class="auth-wrapper px-3" style="display: none;">
     <div class="card card-custom p-4 shadow-sm text-center">
       <div class="mb-3">
-        <i class="fa-solid fa-shield-halved text-success fa-3x"></i>
+        <img class="login-logo" src="alkharafi-logo.png" alt="Al Kharafi">
       </div>
       <h5 class="fw-bold mb-1">HSE Inspection Portal</h5>
       <p class="text-muted small mb-4">Sign in to access your assigned inspections & tasks</p>
@@ -591,7 +596,7 @@
     <div class="side-backdrop" id="sideBackdrop" onclick="closeSideNav()"></div>
     <aside class="side-nav card-custom" id="sideNav" aria-label="Main menu">
       <div class="side-brand">
-        <i class="fa-solid fa-shield-halved"></i>
+        <img class="brand-logo" src="alkharafi-logo.png" alt="Al Kharafi">
         <div class="flex-grow-1">
           <div class="fw-bold">HSE Portal</div>
           <div class="small text-muted">SBARC</div>
@@ -618,6 +623,7 @@
         <button type="button" class="btn btn-light border side-toggle" onclick="openSideNav()" title="Menu">
           <i class="fa-solid fa-bars"></i>
         </button>
+        <img class="brand-logo" src="alkharafi-logo.png" alt="Al Kharafi">
         <div>
           <div class="fw-bold text-dark" id="pageTitle">Home</div>
           <div class="small text-muted" id="headerUserRole">Role | Zones</div>
@@ -1488,13 +1494,13 @@
                 <div class="id-row"><span>Contact</span><span>${escapeHtml(row.contact || "—")}</span></div>
               </div>
               <div class="id-foot">
-                <svg class="id-gear" width="54" height="54" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="none" stroke="#e10600" stroke-width="3"/><path fill="#e10600" d="M32 14l3.2 6.2 6.8.6-5.2 4.4 1.6 6.6L32 28.4l-6.4 3.4 1.6-6.6-5.2-4.4 6.8-.6z"/><circle cx="32" cy="38" r="10" fill="none" stroke="#e10600" stroke-width="4"/><path fill="#e10600" d="M30 8h4v6h-4zm0 42h4v6h-4zM8 30h6v4H8zm42 0h6v4h-6zM14 16l4.2 4.2-2.8 2.8L11.2 18.8zm33.6 33.6 4.2 4.2-2.8 2.8-4.2-4.2zM14 48l2.8-2.8 4.2 4.2-2.8 2.8zm33.6-33.6 2.8-2.8 4.2 4.2-2.8 2.8z"/></svg>
+                <img class="id-gear" src="alkharafi-logo.png" alt="">
                 ${missingId(row.idNumber) ? "" : `<div class="id-qr" data-qr="${escapeHtml(row.idNumber)}" data-sn="${escapeHtml(row.serial || "")}"></div>`}
               </div>
             </div>
             <div class="id-face id-back">
               <div class="id-top"></div>
-              <div class="id-mark"><svg width="62" height="62" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="22" fill="none" stroke="#e10600" stroke-width="6"/><circle cx="32" cy="32" r="6" fill="#e10600"/><path fill="#e10600" d="M29 4h6v12h-6zm0 44h6v12h-6zM4 29h12v6H4zm44 0h12v6H48zM10 12l8.5 8.5-4.2 4.2L5.8 16.2zm35.7 35.7 8.5 8.5-4.2 4.2-8.5-8.5zM10 52l4.2-4.2 8.5 8.5-4.2 4.2zm35.7-35.7 4.2-4.2 8.5 8.5-4.2 4.2z"/></svg></div>
+              <div class="id-mark"><img src="alkharafi-logo.png" alt=""></div>
               <div class="id-terms">
                 <div class="id-terms-title">TERMS &amp; CONDITIONS</div>
                 <p><strong>Identification:</strong> Employees are required to keep their ID badge visible or easily accessible during working hours to confirm identity when needed.</p>
