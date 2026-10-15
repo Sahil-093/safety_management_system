@@ -289,15 +289,15 @@
       gap: 8px;
     }
     .induction-qr {
-      width: 96px;
-      height: 96px;
-      flex: 0 0 96px;
+      width: 128px;
+      height: 128px;
+      flex: 0 0 128px;
       line-height: 0;
     }
     .induction-qr img,
     .induction-qr canvas {
-      width: 96px;
-      height: 96px;
+      width: 128px;
+      height: 128px;
     }
     .task-id, .task-meta {
       display: flex;
@@ -400,6 +400,7 @@
         </button>
       </form>
       <div id="loginError" class="alert alert-danger py-2 mt-3 small" style="display: none;"></div>
+      <div id="loginEmployeeNote" class="text-muted small mt-3" style="display: none;">Sign in to open this employee record.</div>
     </div>
   </div>
 
@@ -996,6 +997,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script>
     const GAS_API = "https://script.google.com/macros/s/AKfycbyWKBmoT8ATUCpg1EY7p9MzNty2oWhgP4T0nVgdt6sib45ex2O0CoNEZ54Nho814KgkrQ/exec";
+    const PORTAL_URL = "https://sahil-093.github.io/sbarc-hse-inspection/";
     let activeUser = null;
     let modalObj = null;
     let allFetchedActions = [];
@@ -1028,9 +1030,19 @@
       }
     });
 
+    function pendingEmployeeLink() {
+      const params = new URLSearchParams(window.location.search);
+      const id = String(params.get("open") || "").trim();
+      const serial = String(params.get("sn") || "").trim();
+      if (id.length < 2) return null;
+      return { id: id, serial: serial };
+    }
+
     function showLogin() {
       document.getElementById('loginSection').style.display = "block";
       document.getElementById('appSection').classList.remove('is-open');
+      const note = document.getElementById('loginEmployeeNote');
+      if (note) note.style.display = pendingEmployeeLink() ? "block" : "none";
     }
 
     function handleLogin() {
@@ -1078,8 +1090,17 @@
       document.getElementById('appSection').classList.add('is-open');
       document.getElementById('headerUserName').innerText = activeUser.name;
       document.getElementById('headerUserRole').innerText = activeUser.role + " | " + activeUser.assignedZones.join(", ");
-      
-      switchView('home');
+      if (!openLinkedEmployee()) switchView('home');
+    }
+
+    function openLinkedEmployee() {
+      const link = pendingEmployeeLink();
+      if (!link) return false;
+      history.replaceState(null, "", window.location.pathname);
+      switchView('induction');
+      document.getElementById('inductionSearch').value = link.id;
+      searchInduction(link.id, link.serial);
+      return true;
     }
 
     function openSideNav() {
@@ -1171,7 +1192,7 @@
       inductionTimer = setTimeout(function () { searchInduction(value); }, 300);
     }
 
-    function searchInduction(value) {
+    function searchInduction(value, onlySerial) {
       const query = String(value || "").trim();
       const box = document.getElementById('inductionResults');
       if (query.length < 2) {
@@ -1186,6 +1207,9 @@
             return;
           }
           inductionRecords = (data && data.records) || [];
+          if (onlySerial) {
+            inductionRecords = inductionRecords.filter(row => String(row.serial) === String(onlySerial));
+          }
           renderInductionCards(inductionRecords, query);
         })
         .catch(err => {
@@ -1212,7 +1236,7 @@
           <div class="card card-custom card-task p-3 mb-2${missingId(row.idNumber) ? " id-missing" : ""}">
             <div class="induction-head">
               <div class="task-id"><span class="fw-bold text-dark">${escapeHtml(row.name || "Employee")}</span></div>
-              ${missingId(row.idNumber) ? "" : `<div class="induction-qr" data-qr="${escapeHtml(row.idNumber)}" title="ID ${escapeHtml(row.idNumber)}"></div>`}
+              ${missingId(row.idNumber) ? "" : `<div class="induction-qr" data-qr="${escapeHtml(row.idNumber)}" data-sn="${escapeHtml(row.serial || "")}" title="ID ${escapeHtml(row.idNumber)}"></div>`}
             </div>
             ${line("S/N", row.serial)}
             ${line("Name", row.name)}
@@ -1241,8 +1265,10 @@
       box.querySelectorAll(".induction-qr").forEach(el => {
         const id = el.getAttribute("data-qr");
         if (!id) return;
+        const serial = el.getAttribute("data-sn") || "";
+        const link = PORTAL_URL + "?open=" + encodeURIComponent(id) + (serial ? "&sn=" + encodeURIComponent(serial) : "");
         el.innerHTML = "";
-        new QRCode(el, { text: id, width: 96, height: 96, correctLevel: QRCode.CorrectLevel.M });
+        new QRCode(el, { text: link, width: 128, height: 128, correctLevel: QRCode.CorrectLevel.M });
       });
     }
 
