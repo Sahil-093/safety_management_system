@@ -282,11 +282,22 @@
     .portal-header-text .small {
       overflow-wrap: anywhere;
     }
-    .task-top, .task-foot {
+    .task-top, .task-foot, .induction-head {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
       gap: 8px;
+    }
+    .induction-qr {
+      width: 96px;
+      height: 96px;
+      flex: 0 0 96px;
+      line-height: 0;
+    }
+    .induction-qr img,
+    .induction-qr canvas {
+      width: 96px;
+      height: 96px;
     }
     .task-id, .task-meta {
       display: flex;
@@ -982,6 +993,7 @@
 
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script>
     const GAS_API = "https://script.google.com/macros/s/AKfycbyWKBmoT8ATUCpg1EY7p9MzNty2oWhgP4T0nVgdt6sib45ex2O0CoNEZ54Nho814KgkrQ/exec";
     let activeUser = null;
@@ -1198,8 +1210,9 @@
       const line = (label, value, missing) => `<div class="equip-line field-line${missing ? " id-missing-line" : ""}"><span>${label}</span><strong>${escapeHtml(value || "—")}</strong></div>`;
       box.innerHTML = records.map(row => `
           <div class="card card-custom card-task p-3 mb-2${missingId(row.idNumber) ? " id-missing" : ""}">
-            <div class="task-top">
+            <div class="induction-head">
               <div class="task-id"><span class="fw-bold text-dark">${escapeHtml(row.name || "Employee")}</span></div>
+              ${missingId(row.idNumber) ? "" : `<div class="induction-qr" data-qr="${escapeHtml(row.idNumber)}" title="ID ${escapeHtml(row.idNumber)}"></div>`}
             </div>
             ${line("S/N", row.serial)}
             ${line("Name", row.name)}
@@ -1220,6 +1233,17 @@
               </div>
             </div>
           </div>`).join("");
+      paintInductionQr(box);
+    }
+
+    function paintInductionQr(box) {
+      if (typeof QRCode === "undefined") return;
+      box.querySelectorAll(".induction-qr").forEach(el => {
+        const id = el.getAttribute("data-qr");
+        if (!id) return;
+        el.innerHTML = "";
+        new QRCode(el, { text: id, width: 96, height: 96, correctLevel: QRCode.CorrectLevel.M });
+      });
     }
 
     function setInductionMode(editing) {
