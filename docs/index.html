@@ -31,24 +31,22 @@
       max-width: 400px;
       margin: 50px auto 20px auto;
     }
-    .main-container {
-      max-width: 680px;
+    .app-shell {
+      display: none;
+      max-width: 1080px;
       margin: 0 auto;
     }
-    .employee-menu-backdrop {
+    .app-shell.is-open { display: block; }
+    .side-backdrop { display: none; }
+    .side-nav {
       display: none;
-    }
-    .employee-menu {
-      display: none;
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-      overflow: hidden;
-    }
-    .employee-menu.open {
-      display: flex;
       flex-direction: column;
+      gap: 6px;
+      padding: 12px;
+      background: #ffffff;
+    }
+    .side-nav.open {
+      display: flex;
       position: fixed;
       z-index: 1040;
       top: 0;
@@ -56,91 +54,95 @@
       bottom: 0;
       width: min(280px, 84vw);
       border-radius: 0 12px 12px 0;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
     }
-    .employee-menu-backdrop.open {
+    .side-backdrop.open {
       display: block;
       position: fixed;
       inset: 0;
       background: rgba(15, 23, 42, 0.35);
       z-index: 1030;
     }
-    .employee-menu-head {
+    .side-brand {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      padding: 12px;
+      gap: 10px;
+      padding: 6px 8px 12px;
       border-bottom: 1px solid #e2e8f0;
-      font-weight: 700;
+      margin-bottom: 6px;
     }
-    .employee-menu-list {
-      overflow: auto;
-      flex: 1;
-      min-height: 0;
-    }
-    .employee-menu-item {
-      display: block;
+    .side-brand i { color: var(--primary-color); font-size: 1.3rem; }
+    .side-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
       width: 100%;
       text-align: left;
       border: 0;
-      border-bottom: 1px solid #f1f5f9;
-      border-left: 3px solid transparent;
-      background: #ffffff;
+      background: transparent;
+      color: #334155;
+      font-weight: 600;
+      border-radius: 8px;
       padding: 10px 12px;
     }
-    .employee-menu-item.active {
-      background: #f0fdfa;
-      border-left-color: var(--primary-color);
+    .side-link.active {
+      background: var(--primary-color);
+      color: #ffffff;
     }
-    .employee-menu-item .name {
-      font-weight: 700;
-      color: #0f172a;
-      overflow-wrap: anywhere;
+    .home-stats, .home-links {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
     }
-    .employee-menu-item .meta {
-      color: #64748b;
-      font-size: 0.75rem;
-      overflow-wrap: anywhere;
-    }
-    .employee-menu-item .meta.missing {
-      color: #b91c1c;
-      font-weight: 700;
-    }
-    .btn-employee-menu {
-      background: #ffffff;
+    .home-stat, .home-link {
+      width: 100%;
+      text-align: left;
       border: 1px solid #e2e8f0;
-      color: #0f172a;
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 12px;
+    }
+    .home-stat strong {
+      display: block;
+      font-size: 1.4rem;
+      line-height: 1.1;
+    }
+    .home-stat span, .home-link span {
+      color: #64748b;
+      font-size: 0.78rem;
       font-weight: 600;
     }
+    .home-stat.bad { border-left: 4px solid #b91c1c; }
+    .home-stat.bad strong { color: #b91c1c; }
+    .home-stat.warn { border-left: 4px solid #c2410c; }
+    .home-stat.warn strong { color: #c2410c; }
+    .home-stat.ok { border-left: 4px solid var(--primary-color); }
+    .home-stat.ok strong { color: var(--primary-color); }
+    .side-toggle { display: inline-flex; }
     @media (min-width: 860px) {
-      .main-container.induction-open {
-        max-width: 980px;
-      }
-      .induction-layout {
+      .app-shell.is-open {
         display: flex;
         align-items: flex-start;
-        gap: 12px;
+        gap: 16px;
       }
-      .employee-menu,
-      .employee-menu.open {
+      .side-nav,
+      .side-nav.open {
         display: flex;
-        flex-direction: column;
         position: sticky;
         top: 12px;
         left: auto;
         bottom: auto;
-        width: 240px;
-        flex: 0 0 240px;
-        max-height: calc(100vh - 24px);
+        width: 230px;
+        flex: 0 0 230px;
         border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e2e8f0;
       }
-      .employee-menu-backdrop.open {
-        display: none;
-      }
-      .employee-menu-head .btn-close,
-      .btn-employee-menu {
-        display: none;
-      }
+      .side-backdrop.open { display: none; }
+      .side-toggle, .side-close { display: none; }
+      .app-main { flex: 1; min-width: 0; }
+      .home-stats { grid-template-columns: repeat(4, 1fr); }
     }
     .card-custom {
       background: #ffffff;
@@ -391,39 +393,92 @@
   </div>
 
   <!-- ==================== 2. MAIN APPLICATION ==================== -->
-  <div id="appSection" class="main-container px-3 pt-3" style="display: none;">
-    <!-- Top Bar -->
-    <div class="card card-custom p-3 mb-3 d-flex flex-row justify-content-between align-items-center">
-      <div class="portal-header-text">
-        <div class="fw-bold text-dark fs-6" id="headerUserName">Officer Name</div>
-        <div class="small text-muted" id="headerUserRole">Role | Zones</div>
+  <div id="appSection" class="app-shell px-3 pt-3">
+    <div class="side-backdrop" id="sideBackdrop" onclick="closeSideNav()"></div>
+    <aside class="side-nav card-custom" id="sideNav" aria-label="Main menu">
+      <div class="side-brand">
+        <i class="fa-solid fa-shield-halved"></i>
+        <div class="flex-grow-1">
+          <div class="fw-bold">HSE Portal</div>
+          <div class="small text-muted">SBARC</div>
+        </div>
+        <button type="button" class="btn-close side-close" onclick="closeSideNav()" aria-label="Close"></button>
       </div>
-      <button class="btn btn-outline-danger btn-sm" onclick="handleLogout()" title="Logout">
-        <i class="fa-solid fa-power-off"></i>
+      <button type="button" class="side-link active" id="navHome" onclick="switchView('home')">
+        <i class="fa-solid fa-house"></i> Home
       </button>
+      <button type="button" class="side-link" id="navInspections" onclick="switchView('pending')">
+        <i class="fa-solid fa-clipboard-check"></i> Inspections
+      </button>
+      <button type="button" class="side-link" id="navEmployees" onclick="switchView('induction')">
+        <i class="fa-solid fa-users"></i> Employee Data
+      </button>
+      <button type="button" class="side-link" id="navNew" onclick="switchView('new')">
+        <i class="fa-solid fa-circle-plus"></i> New Inspection
+      </button>
+    </aside>
+
+    <div class="app-main">
+    <div class="card card-custom p-3 mb-3 d-flex flex-row justify-content-between align-items-center">
+      <div class="d-flex align-items-center gap-2 portal-header-text">
+        <button type="button" class="btn btn-light border side-toggle" onclick="openSideNav()" title="Menu">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <div>
+          <div class="fw-bold text-dark" id="pageTitle">Home</div>
+          <div class="small text-muted" id="headerUserRole">Role | Zones</div>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <div class="fw-bold text-dark small" id="headerUserName">Officer Name</div>
+        <button class="btn btn-outline-danger btn-sm" onclick="handleLogout()" title="Logout">
+          <i class="fa-solid fa-power-off"></i>
+        </button>
+      </div>
     </div>
 
-    <!-- Navigation Pills -->
-    <ul class="nav nav-pills nav-fill mb-3 bg-white p-1 rounded-3 shadow-sm border">
-      <li class="nav-item">
-        <a class="nav-link active" id="tabLinkPending" href="#" onclick="switchView('pending')">
-          <i class="fa-solid fa-clock-rotate-left me-1"></i> Pending Items
-        </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" id="tabLinkNew" href="#" onclick="switchView('new')">
-          <i class="fa-solid fa-circle-plus me-1"></i> New Inspection
-        </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" id="tabLinkInduction" href="#" onclick="switchView('induction')">
-          <i class="fa-solid fa-id-card me-1"></i> Induction
-        </a>
-      </li>
-    </ul>
+    <div id="viewHome">
+      <div class="home-stats">
+        <button type="button" class="home-stat bad" onclick="openInspections('ALL','expired')">
+          <strong id="homeExpired">0</strong><span>Expired</span>
+        </button>
+        <button type="button" class="home-stat warn" onclick="openInspections('ALL','missing')">
+          <strong id="homeMissing">0</strong><span>Not Available</span>
+        </button>
+        <button type="button" class="home-stat ok" onclick="openInspections('ALL','valid')">
+          <strong id="homeValid">0</strong><span>Valid</span>
+        </button>
+        <button type="button" class="home-stat" onclick="openInspections('ALL','all')">
+          <strong id="homeAll">0</strong><span>All inspections</span>
+        </button>
+      </div>
+      <div class="home-links">
+        <button type="button" class="home-link" onclick="openInspections('Generator','all')">
+          <i class="fa-solid fa-bolt text-warning"></i>
+          <span class="d-block">Generator</span>
+        </button>
+        <button type="button" class="home-link" onclick="openInspections('Equipment','all')">
+          <i class="fa-solid fa-truck-monster text-primary"></i>
+          <span class="d-block">Equipment</span>
+        </button>
+        <button type="button" class="home-link" onclick="openInspections('Scaffolding','all')">
+          <i class="fa-solid fa-person-digging text-danger"></i>
+          <span class="d-block">Scaffolding</span>
+        </button>
+        <button type="button" class="home-link" onclick="switchView('induction')">
+          <i class="fa-solid fa-users" style="color: var(--primary-color);"></i>
+          <span class="d-block">Employee Data</span>
+        </button>
+      </div>
+      <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+        <div class="fw-bold">Needs attention</div>
+        <button type="button" class="btn btn-sm btn-portal-primary" onclick="switchView('new')">New inspection</button>
+      </div>
+      <div id="homeAttention"></div>
+    </div>
 
-    <!-- VIEW A: PENDING ACTIONS LIST -->
-    <div id="viewPending">
+    <!-- VIEW A: INSPECTIONS -->
+    <div id="viewPending" style="display: none;">
       <!-- MAIN CATEGORY FILTER BUTTONS -->
       <div class="d-flex flex-wrap gap-2 mb-2 px-1" id="categoryFilterRow">
         <button class="filter-btn active" id="filterBtnAll" onclick="setCategoryFilter('ALL')">
@@ -734,22 +789,9 @@
       </div>
     </div>
 
-    <!-- VIEW C: INDUCTION LOG -->
+    <!-- VIEW C: EMPLOYEE DATA -->
     <div id="viewInduction" style="display: none;">
-      <div class="induction-layout">
-      <div class="employee-menu-backdrop" id="employeeMenuBackdrop" onclick="closeEmployeeMenu()"></div>
-      <aside class="employee-menu" id="employeeMenu" aria-label="Employees">
-        <div class="employee-menu-head">
-          <span>Employees <span class="text-muted fw-normal small" id="employeeMenuCount"></span></span>
-          <button type="button" class="btn-close" onclick="closeEmployeeMenu()" aria-label="Close"></button>
-        </div>
-        <div class="employee-menu-list" id="employeeMenuList"></div>
-      </aside>
-      <div class="induction-main flex-grow-1" style="min-width: 0;">
       <div class="d-flex gap-2 mb-3 align-items-stretch">
-        <button type="button" class="btn btn-employee-menu px-3" id="btnEmployeeMenu" onclick="openEmployeeMenu()" title="Employees">
-          <i class="fa-solid fa-bars"></i>
-        </button>
         <label class="search-box flex-grow-1" for="inductionSearch">
           <i class="fa-solid fa-magnifying-glass"></i>
           <input id="inductionSearch" type="search" placeholder="Employee name or ID number" autocomplete="off" oninput="onInductionSearch(this.value)">
@@ -811,8 +853,7 @@
       </div>
 
       <div id="inductionResults"></div>
-      </div>
-      </div>
+    </div>
     </div>
   </div>
 
@@ -977,7 +1018,7 @@
 
     function showLogin() {
       document.getElementById('loginSection').style.display = "block";
-      document.getElementById('appSection').style.display = "none";
+      document.getElementById('appSection').classList.remove('is-open');
     }
 
     function handleLogin() {
@@ -1022,151 +1063,95 @@
 
     function displayApp() {
       document.getElementById('loginSection').style.display = "none";
-      document.getElementById('appSection').style.display = "block";
+      document.getElementById('appSection').classList.add('is-open');
       document.getElementById('headerUserName').innerText = activeUser.name;
       document.getElementById('headerUserRole').innerText = activeUser.role + " | " + activeUser.assignedZones.join(", ");
       
-      switchView('pending');
+      switchView('home');
+    }
+
+    function openSideNav() {
+      document.getElementById('sideNav').classList.add('open');
+      document.getElementById('sideBackdrop').classList.add('open');
+    }
+
+    function closeSideNav() {
+      document.getElementById('sideNav').classList.remove('open');
+      document.getElementById('sideBackdrop').classList.remove('open');
     }
 
     function switchView(viewName) {
+      document.getElementById('viewHome').style.display = viewName === 'home' ? 'block' : 'none';
       document.getElementById('viewPending').style.display = viewName === 'pending' ? 'block' : 'none';
       document.getElementById('viewNew').style.display = viewName === 'new' ? 'block' : 'none';
       document.getElementById('viewInduction').style.display = viewName === 'induction' ? 'block' : 'none';
-      document.getElementById('tabLinkPending').classList.toggle('active', viewName === 'pending');
-      document.getElementById('tabLinkNew').classList.toggle('active', viewName === 'new');
-      document.getElementById('tabLinkInduction').classList.toggle('active', viewName === 'induction');
-      document.querySelector('.main-container').classList.toggle('induction-open', viewName === 'induction');
-      if (viewName !== 'induction') closeEmployeeMenu();
-      if (viewName === 'pending') fetchRegisters();
+      document.getElementById('navHome').classList.toggle('active', viewName === 'home');
+      document.getElementById('navInspections').classList.toggle('active', viewName === 'pending');
+      document.getElementById('navEmployees').classList.toggle('active', viewName === 'induction');
+      document.getElementById('navNew').classList.toggle('active', viewName === 'new');
+      const titles = { home: "Home", pending: "Inspections", induction: "Employee Data", new: "New Inspection" };
+      document.getElementById('pageTitle').innerText = titles[viewName] || "Home";
+      closeSideNav();
+      if ((viewName === 'home' || viewName === 'pending') && !generatorRecords.length && !equipmentRecords.length && !scaffoldRecords.length) {
+        fetchRegisters();
+      } else if (viewName === 'home') {
+        renderHome();
+      }
       if (viewName === 'induction') showInductionPrompt();
+    }
+
+    function openInspections(category, status) {
+      switchView('pending');
+      if (category) setCategoryFilter(category);
+      if (status) setStatusFilter(status);
+    }
+
+    function renderHome() {
+      const all = generatorRecords.concat(equipmentRecords, scaffoldRecords);
+      const expired = all.filter(row => matchesStatus(row, "expired"));
+      const missing = all.filter(row => matchesStatus(row, "missing") && !matchesStatus(row, "expired"));
+      const valid = all.filter(row => matchesStatus(row, "valid"));
+      document.getElementById('homeExpired').innerText = expired.length;
+      document.getElementById('homeMissing').innerText = all.filter(row => matchesStatus(row, "missing")).length;
+      document.getElementById('homeValid').innerText = valid.length;
+      document.getElementById('homeAll').innerText = all.length;
+      const box = document.getElementById('homeAttention');
+      const attention = expired.concat(missing).slice(0, 4);
+      box.innerHTML = "";
+      if (!all.length) {
+        box.innerHTML = '<div class="card card-custom p-4 text-center"><div class="text-muted small">Loading inspection sheets...</div></div>';
+        return;
+      }
+      if (!attention.length) {
+        box.innerHTML = '<div class="card card-custom p-4 text-center"><div class="fw-bold">Nothing needs attention</div><div class="text-muted small">No expired or not available records on the sheets.</div></div>';
+        return;
+      }
+      attention.forEach(row => {
+        const bad = matchesStatus(row, "expired");
+        const title = row.equipmentType || row.title || row.category || "Inspection";
+        const place = row.contractor || row.subtitle || row.zone || "";
+        const filter = bad ? "expired" : "missing";
+        const category = row.category || "ALL";
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "card card-custom card-task p-3 mb-2 w-100 text-start";
+        button.onclick = function () { openInspections(category, filter); };
+        button.innerHTML = '<div class="d-flex justify-content-between gap-2"><strong>' + escapeHtml(title) + '</strong><span class="small fw-bold" style="color:' + (bad ? "#b91c1c" : "#c2410c") + '">' + (bad ? "Expired" : "Not Available") + '</span></div><div class="small text-muted">' + escapeHtml(place) + '</div>';
+        box.appendChild(button);
+      });
     }
 
     let inductionTimer = null;
     let inductionRecords = [];
-    let inductionDirectory = null;
-    let inductionDirectoryPromise = null;
-    let selectedInductionRow = 0;
-
-    function missingInductionId(value) {
-      const text = String(value || "").trim().toLowerCase();
-      return !text || text === "na" || text === "n/a" || text === "not available" || text === "nil";
-    }
-
-    function inductionMatches(row, query) {
-      const q = String(query || "").trim().toLowerCase();
-      if (q.length < 2) return false;
-      const name = String(row.name || "");
-      const id = String(row.idNumber || "");
-      const nameHit = name.toLowerCase().indexOf(q) !== -1;
-      const qDigits = q.replace(/\D/g, "");
-      const idDigits = id.replace(/\D/g, "");
-      let idHit = false;
-      if (id && qDigits.length >= 8) idHit = idDigits === qDigits;
-      else if (id && qDigits.length >= 2) idHit = idDigits.indexOf(qDigits) !== -1;
-      else if (id) idHit = id.toLowerCase().indexOf(q) !== -1;
-      return nameHit || idHit;
-    }
-
-    function openEmployeeMenu() {
-      document.getElementById('employeeMenu').classList.add('open');
-      document.getElementById('employeeMenuBackdrop').classList.add('open');
-    }
-
-    function closeEmployeeMenu() {
-      document.getElementById('employeeMenu').classList.remove('open');
-      document.getElementById('employeeMenuBackdrop').classList.remove('open');
-    }
-
-    function loadInductionDirectory(force) {
-      if (force) {
-        inductionDirectory = null;
-        inductionDirectoryPromise = null;
-      }
-      if (inductionDirectory) return Promise.resolve(inductionDirectory);
-      if (inductionDirectoryPromise) return inductionDirectoryPromise;
-      inductionDirectoryPromise = callApi("inductionList", {}).then(data => {
-        if (!data || data.success === false || !Array.isArray(data.records)) {
-          throw new Error((data && data.message) || "Could not load employees");
-        }
-        inductionDirectory = data.records;
-        return inductionDirectory;
-      }).catch(err => {
-        inductionDirectoryPromise = null;
-        throw err;
-      });
-      return inductionDirectoryPromise;
-    }
-
-    function renderEmployeeMenu(rows, total) {
-      const list = document.getElementById('employeeMenuList');
-      const count = document.getElementById('employeeMenuCount');
-      const shown = rows.slice(0, 80);
-      count.textContent = !total ? "" : (rows.length === total ? "(" + total + ")" : "(" + rows.length + " of " + total + ")");
-      if (!shown.length) {
-        list.innerHTML = '<div class="p-3 small text-muted">No employees match.</div>';
-        return;
-      }
-      list.innerHTML = shown.map(row => {
-        const idMissing = missingInductionId(row.idNumber);
-        return `<button type="button" class="employee-menu-item${row.sheetRow === selectedInductionRow ? " active" : ""}" onclick="selectEmployee(${Number(row.sheetRow)})">
-          <div class="name">${escapeHtml(row.name || "Employee")}</div>
-          <div class="meta${idMissing ? " missing" : ""}">${escapeHtml(row.idNumber || "ID missing")}${row.company ? " · " + escapeHtml(row.company) : ""}</div>
-        </button>`;
-      }).join("") + (rows.length > 80 ? '<div class="p-2 small text-muted text-center">Search to see more names.</div>' : "");
-    }
-
-    function selectEmployee(sheetRow) {
-      const source = inductionDirectory || inductionRecords;
-      const row = source.find(item => item.sheetRow === sheetRow);
-      if (!row) return;
-      selectedInductionRow = sheetRow;
-      document.getElementById('inductionSearch').value = row.idNumber || row.name || "";
-      closeEmployeeMenu();
-      if (inductionDirectory) applyInductionView();
-      else {
-        inductionRecords = [row];
-        renderEmployeeMenu(inductionRecords, inductionRecords.length);
-        renderInductionCards(inductionRecords, document.getElementById('inductionSearch').value.trim());
-      }
-    }
-
-    function applyInductionView() {
-      const query = document.getElementById('inductionSearch').value.trim();
-      const all = inductionDirectory || [];
-      const matches = query.length < 2 ? [] : all.filter(row => inductionMatches(row, query));
-      const menuRows = query.length < 2 ? all : matches;
-      if (query.length >= 2 && !menuRows.some(row => row.sheetRow === selectedInductionRow)) {
-        selectedInductionRow = matches[0] ? matches[0].sheetRow : 0;
-      }
-      renderEmployeeMenu(menuRows, all.length);
-      if (query.length < 2 && !selectedInductionRow) {
-        inductionRecords = [];
-        document.getElementById('inductionResults').innerHTML = `
-          <div class="card card-custom p-4 text-center">
-            <div class="fw-bold">Induction Log</div>
-            <div class="text-muted small">Pick an employee from the list, or search a name or ID.</div>
-          </div>`;
-        return;
-      }
-      if (query.length >= 2 && !matches.length) {
-        selectedInductionRow = 0;
-        inductionRecords = [];
-        renderInductionCards([], query);
-        return;
-      }
-      const pool = query.length >= 2 ? matches : all;
-      const shown = pool.filter(row => row.sheetRow === selectedInductionRow);
-      inductionRecords = shown.length ? shown : pool;
-      renderInductionCards(inductionRecords, query);
-    }
 
     function showInductionPrompt() {
-      const list = document.getElementById('employeeMenuList');
-      if (!inductionDirectory && list) {
-        list.innerHTML = '<div class="p-3 small text-muted">Loading employees from the induction sheet...</div>';
-      }
-      searchInduction(document.getElementById('inductionSearch').value.trim());
+      const query = document.getElementById('inductionSearch').value.trim();
+      if (query.length >= 2) searchInduction(query);
+      else document.getElementById('inductionResults').innerHTML = `
+        <div class="card card-custom p-4 text-center">
+          <div class="fw-bold">Employee Data</div>
+          <div class="text-muted small">Search an employee name or ID number from the induction sheet.</div>
+        </div>`;
     }
 
     function onInductionSearch(value) {
@@ -1175,27 +1160,13 @@
     }
 
     function searchInduction(value) {
-      const box = document.getElementById('inductionResults');
-      if (inductionDirectory) {
-        applyInductionView();
-        return;
-      }
-      box.innerHTML = `<div class="text-center py-4"><div class="spinner-border spinner-border-sm" style="color: var(--primary-color);"></div></div>`;
-      loadInductionDirectory().then(function () { applyInductionView(); }).catch(function () { remoteSearchInduction(value); });
-    }
-
-    function remoteSearchInduction(value) {
       const query = String(value || "").trim();
       const box = document.getElementById('inductionResults');
       if (query.length < 2) {
-        renderEmployeeMenu([], 0);
-        box.innerHTML = `
-          <div class="card card-custom p-4 text-center">
-            <div class="fw-bold">Induction Log</div>
-            <div class="text-muted small">Enter an employee name or ID number.</div>
-          </div>`;
+        showInductionPrompt();
         return;
       }
+      box.innerHTML = `<div class="text-center py-4"><div class="spinner-border spinner-border-sm" style="color: var(--primary-color);"></div></div>`;
       callApi("inductionSearch", { q: query })
         .then(data => {
           if (data && data.success === false) {
@@ -1203,12 +1174,7 @@
             return;
           }
           inductionRecords = (data && data.records) || [];
-          if (!inductionRecords.some(row => row.sheetRow === selectedInductionRow)) {
-            selectedInductionRow = inductionRecords[0] ? inductionRecords[0].sheetRow : 0;
-          }
-          renderEmployeeMenu(inductionRecords, inductionRecords.length);
-          const shown = inductionRecords.filter(row => row.sheetRow === selectedInductionRow);
-          renderInductionCards(shown.length ? shown : inductionRecords, query);
+          renderInductionCards(inductionRecords, query);
         })
         .catch(err => {
           box.innerHTML = `<div class="alert alert-danger small">Could not search: ${escapeHtml(err.toString())}</div>`;
@@ -1308,11 +1274,7 @@
               setInductionMode(false);
               toggleInductionForm(false);
             }
-            loadInductionDirectory(true).then(function () {
-              searchInduction(document.getElementById('inductionSearch').value.trim());
-            }).catch(function () {
-              searchInduction(document.getElementById('inductionSearch').value.trim());
-            });
+            searchInduction(document.getElementById('inductionSearch').value.trim());
           } else {
             alert("Error: " + ((res && res.message) || "Could not delete"));
           }
@@ -1365,12 +1327,7 @@
             toggleInductionForm(false);
             const lookup = payload.idNumber || payload.name;
             document.getElementById('inductionSearch').value = lookup;
-            selectedInductionRow = 0;
-            loadInductionDirectory(true).then(function () {
-              searchInduction(lookup);
-            }).catch(function () {
-              searchInduction(lookup);
-            });
+            searchInduction(lookup);
           } else {
             setInductionMode(editing);
             alert("Error: " + ((res && res.message) || "Could not save"));
@@ -1444,6 +1401,7 @@
       document.getElementById('countExpired').innerText = current.filter(row => matchesStatus(row, "expired")).length;
       document.getElementById('countMissing').innerText = current.filter(row => matchesStatus(row, "missing")).length;
       document.getElementById('countStatusAll').innerText = current.length;
+      renderHome();
     }
 
     function setStatusFilter(filter) {
