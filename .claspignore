@@ -2,3 +2,4 @@ docs/**
 .git/**
 .gitignore
 .claspignore
+_patch_home.js

@@ -5,6 +5,16 @@
 const SPREADSHEET = SpreadsheetApp.getActiveSpreadsheet();
 
 // Web App entry point. action=... serves JSON for the mobile page.
+function doPost(e) {
+  let params = {};
+  try {
+    params = JSON.parse((e && e.postData && e.postData.contents) || "{}");
+  } catch (err) {
+    params = {};
+  }
+  return apiResponse_(params);
+}
+
 function doGet(e) {
   const params = (e && e.parameter) || {};
   if (params.action) {
@@ -55,6 +65,8 @@ function apiResponse_(params) {
       result = updateInductionRecord(payload);
     } else if (params.action === "inductionDelete") {
       result = deleteInductionRecord(payload);
+    } else if (params.action === "inductionPhoto") {
+      result = uploadInductionPhoto(payload);
     } else {
       result = { success: false, message: "Unknown action." };
     }

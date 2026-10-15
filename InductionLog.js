@@ -133,7 +133,96 @@ function searchInductionLog(query) {
     records.push(inductionRecord_(rows[i], i + 1));
   }
   records.reverse();
-  return records.slice(0, 40);
+  return attachInductionPhotos_(records.slice(0, 40));
+}
+
+var INDUCTION_PHOTO_FOLDER = "SBARC Induction Photos";
+
+function inductionPhotoFolder_(create) {
+  const folders = DriveApp.getFoldersByName(INDUCTION_PHOTO_FOLDER);
+  if (folders.hasNext()) return folders.next();
+  if (!create) return null;
+  return DriveApp.createFolder(INDUCTION_PHOTO_FOLDER);
+}
+
+function inductionPhotoFileName_(serial, idNumber) {
+  const serialText = String(serial || "").trim();
+  if (serialText) return "sn-" + serialText + ".jpg";
+  const id = String(idNumber || "").replace(/[^\w.-]/g, "");
+  return "id-" + (id || "unknown") + ".jpg";
+}
+
+function inductionPhotoUrl_(fileId) {
+  return "https://lh3.googleusercontent.com/d/" + fileId;
+}
+
+function inductionPhotoMap_() {
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get("induction-photos");
+  if (cached) {
+    try { return JSON.parse(cached); } catch (err) {}
+  }
+  const folder = inductionPhotoFolder_(false);
+  const map = {};
+  if (folder) {
+    const files = folder.getFiles();
+    while (files.hasNext()) {
+      const file = files.next();
+      map[file.getName()] = file.getId();
+    }
+  }
+  try { cache.put("induction-photos", JSON.stringify(map), 300); } catch (err) {}
+  return map;
+}
+
+function attachInductionPhotos_(records) {
+  if (!records.length) return records;
+  let map = {};
+  try { map = inductionPhotoMap_(); } catch (err) { map = {}; }
+  for (let i = 0; i < records.length; i++) {
+    const name = inductionPhotoFileName_(records[i].serial, records[i].idNumber);
+    records[i].photoUrl = map[name] ? inductionPhotoUrl_(map[name]) : "";
+  }
+  return records;
+}
+
+function uploadInductionPhoto(formData) {
+  try {
+    const row = parseInt(formData.sheetRow, 10);
+    if (!row || row < 3) return { success: false, message: "Invalid induction row." };
+    const image = String(formData.image || "").replace(/^data:image\/\w+;base64,/, "");
+    if (!image) return { success: false, message: "Choose a picture first." };
+    if (image.length > 120000) return { success: false, message: "Picture is too large. Choose a smaller photo." };
+
+    const ss = SpreadsheetApp.openById(INDUCTION_SPREADSHEET_ID);
+    const sheet = inductionTab_(ss);
+    if (!sheet) return { success: false, message: "Induction sheet tab was not found." };
+
+    const currentName = String(sheet.getRange(row, 2).getValue() || "").trim();
+    const currentId = inductionIdText_(sheet.getRange(row, 4).getValue());
+    const currentSerial = inductionIdText_(sheet.getRange(row, 1).getValue());
+    const sameRow = currentName === String(formData.originalName || "").trim() &&
+      currentId === inductionIdText_(formData.originalId) &&
+      currentSerial === String(formData.originalSerial || "").trim();
+    if (!sameRow) {
+      return { success: false, message: "This row changed in the sheet. Search again and try again." };
+    }
+
+    const folder = inductionPhotoFolder_(true);
+    const name = inductionPhotoFileName_(currentSerial, currentId);
+    const existing = folder.getFilesByName(name);
+    while (existing.hasNext()) existing.next().setTrashed(true);
+    const file = folder.createFile(Utilities.newBlob(Utilities.base64Decode(image), "image/jpeg", name));
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    try { CacheService.getScriptCache().remove("induction-photos"); } catch (err) {}
+    return { success: true, message: "Picture saved.", photoUrl: inductionPhotoUrl_(file.getId()) };
+  } catch (err) {
+    const message = String(err);
+    if (/permission|authorization|drive/i.test(message)) {
+      return { success: false, message: "Google Drive access is needed. Open the Apps Script project once and allow Drive, then try again." };
+    }
+    return inductionWriteError_(err);
+  }
 }
 
 function recordInduction(formData, user) {
