@@ -427,6 +427,107 @@
       justify-content: center;
       margin-top: 12px;
     }
+    .id-pair {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      margin: 0 0 18px;
+    }
+    .id-face {
+      width: 280px;
+      background: #fff;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+      color: #10233f;
+    }
+    .id-top {
+      height: 92px;
+      background: #e10600;
+      border-bottom-left-radius: 50% 36px;
+      border-bottom-right-radius: 50% 36px;
+    }
+    .id-photo, .id-mark {
+      width: 108px;
+      height: 108px;
+      border-radius: 50%;
+      border: 5px solid #e10600;
+      margin: -70px auto 8px;
+      background: #fff;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
+    }
+    .id-photo img { width: 100%; height: 100%; object-fit: cover; }
+    .id-photo i { color: #94a3b8; font-size: 2rem; }
+    .id-name {
+      text-align: center;
+      font-weight: 800;
+      font-size: 1.25rem;
+      line-height: 1.15;
+      letter-spacing: 0.01em;
+      text-transform: uppercase;
+      padding: 0 14px;
+    }
+    .id-role {
+      display: table;
+      margin: 8px auto 10px;
+      background: #e10600;
+      color: #fff;
+      font-weight: 800;
+      font-size: 0.72rem;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      border-radius: 7px;
+      padding: 4px 12px;
+    }
+    .id-rows { padding: 0 18px 4px; font-size: 0.92rem; font-weight: 700; }
+    .id-row { display: grid; grid-template-columns: 88px 1fr; gap: 8px; margin: 3px 0; }
+    .id-foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding: 8px 14px 12px;
+    }
+    .id-qr { width: 72px; height: 72px; line-height: 0; }
+    .id-qr img, .id-qr canvas { width: 72px; height: 72px; }
+    .id-back .id-top { height: 64px; }
+    .id-mark { margin-top: -48px; }
+    .id-terms-title {
+      text-align: center;
+      font-weight: 800;
+      font-size: 0.78rem;
+      letter-spacing: 0.04em;
+      margin-bottom: 8px;
+    }
+    .id-terms { padding: 0 14px 10px; font-size: 0.62rem; line-height: 1.35; }
+    .id-terms p { margin: 0 0 6px; }
+    .id-emergency {
+      background: #e10600;
+      color: #fff;
+      text-align: center;
+      font-weight: 800;
+      font-size: 0.78rem;
+      padding: 8px 10px 10px;
+    }
+    .id-print { display: flex; justify-content: center; margin-top: 8px; width: 100%; }
+    @media print {
+      body.printing-id * { visibility: hidden; }
+      body.printing-id .id-pair.print-target,
+      body.printing-id .id-pair.print-target * { visibility: visible; }
+      body.printing-id .id-pair.print-target {
+        position: absolute;
+        left: 0;
+        top: 0;
+        margin: 0;
+      }
+      body.printing-id .id-print { display: none; }
+    }
     .card-task.id-missing { border-left-color: #b91c1c; }
     .field-line.id-missing-line span,
     .field-line.id-missing-line strong { color: #b91c1c; }
@@ -1335,6 +1436,8 @@
         const roster = row.source === "roster" || row.inducted === false;
         const inducted = row.inducted !== false && !roster;
         const canEdit = !roster && Number(row.sheetRow) >= 3;
+        const badgeText = String(row.badge || "").trim();
+        const hasBadge = badgeText && badgeText !== "-" && badgeText !== "—" && badgeText.toLowerCase() !== "na" && badgeText.toLowerCase() !== "n/a";
         return `
           <div class="card card-custom card-task p-3 mb-2 ${inducted ? "inducted" : "not-inducted"}${missingId(row.idNumber) ? " id-missing" : ""}">
             <div class="induction-status">${inducted ? "Inducted" : "Not Inducted"}</div>
@@ -1371,21 +1474,63 @@
                 <button type="button" class="btn btn-sm btn-portal-primary py-1 px-3" onclick="openInductionUpdate(${Number(row.sheetRow)})">Update</button>` : `<button type="button" class="btn btn-sm btn-portal-primary py-1 px-3" onclick="startInductionFromRoster(${index})">New induction</button>`}
               </div>
             </div>
-          </div>`;
+          </div>
+          ${hasBadge ? `<div class="id-pair" id="idPair${index}">
+            <div class="id-face">
+              <div class="id-top"></div>
+              <div class="id-photo">${row.photoUrl ? `<img src="${escapeHtml(row.photoUrl)}" alt="" onerror="inductionPhotoFailed(this)">` : `<i class="fa-solid fa-user"></i>`}</div>
+              <div class="id-name">${escapeHtml(row.name || "Employee")}</div>
+              <div class="id-role">${escapeHtml(row.position || "Employee")}</div>
+              <div class="id-rows">
+                <div class="id-row"><span>Emp_ID</span><span>${escapeHtml(row.employeeCode || "—")}</span></div>
+                <div class="id-row"><span>Badge_No.</span><span>${escapeHtml(row.badge || "—")}</span></div>
+                <div class="id-row"><span>ID No.</span><span>${escapeHtml(row.idNumber || "—")}</span></div>
+                <div class="id-row"><span>Contact</span><span>${escapeHtml(row.contact || "—")}</span></div>
+              </div>
+              <div class="id-foot">
+                <svg class="id-gear" width="54" height="54" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="none" stroke="#e10600" stroke-width="3"/><path fill="#e10600" d="M32 14l3.2 6.2 6.8.6-5.2 4.4 1.6 6.6L32 28.4l-6.4 3.4 1.6-6.6-5.2-4.4 6.8-.6z"/><circle cx="32" cy="38" r="10" fill="none" stroke="#e10600" stroke-width="4"/><path fill="#e10600" d="M30 8h4v6h-4zm0 42h4v6h-4zM8 30h6v4H8zm42 0h6v4h-6zM14 16l4.2 4.2-2.8 2.8L11.2 18.8zm33.6 33.6 4.2 4.2-2.8 2.8-4.2-4.2zM14 48l2.8-2.8 4.2 4.2-2.8 2.8zm33.6-33.6 2.8-2.8 4.2 4.2-2.8 2.8z"/></svg>
+                ${missingId(row.idNumber) ? "" : `<div class="id-qr" data-qr="${escapeHtml(row.idNumber)}" data-sn="${escapeHtml(row.serial || "")}"></div>`}
+              </div>
+            </div>
+            <div class="id-face id-back">
+              <div class="id-top"></div>
+              <div class="id-mark"><svg width="62" height="62" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="22" fill="none" stroke="#e10600" stroke-width="6"/><circle cx="32" cy="32" r="6" fill="#e10600"/><path fill="#e10600" d="M29 4h6v12h-6zm0 44h6v12h-6zM4 29h12v6H4zm44 0h12v6H48zM10 12l8.5 8.5-4.2 4.2L5.8 16.2zm35.7 35.7 8.5 8.5-4.2 4.2-8.5-8.5zM10 52l4.2-4.2 8.5 8.5-4.2 4.2zm35.7-35.7 4.2-4.2 8.5 8.5-4.2 4.2z"/></svg></div>
+              <div class="id-terms">
+                <div class="id-terms-title">TERMS &amp; CONDITIONS</div>
+                <p><strong>Identification:</strong> Employees are required to keep their ID badge visible or easily accessible during working hours to confirm identity when needed.</p>
+                <p><strong>Proper Use:</strong> The ID badge is issued solely for company-related activities. It may not be lent, duplicated, or used for any non-official purpose.</p>
+                <p><strong>Security:</strong> If the badge is misplaced or suspected to be compromised, report it immediately so access can be disabled.</p>
+              </div>
+              <div class="id-emergency">Emergency: 0590618456</div>
+            </div>
+            <div class="id-print"><button type="button" class="btn btn-sm btn-light border" onclick="printIdCard(${index})">Print ID card</button></div>
+          </div>` : ""}`;
       }).join("");
       paintInductionQr(box);
     }
 
     function paintInductionQr(box) {
       if (typeof QRCode === "undefined") return;
-      box.querySelectorAll(".induction-qr").forEach(el => {
+      box.querySelectorAll(".induction-qr, .id-qr").forEach(el => {
         const id = el.getAttribute("data-qr");
         if (!id) return;
         const serial = el.getAttribute("data-sn") || "";
         const link = PORTAL_URL + "?open=" + encodeURIComponent(id) + (serial ? "&sn=" + encodeURIComponent(serial) : "");
         el.innerHTML = "";
-        new QRCode(el, { text: link, width: 128, height: 128, correctLevel: QRCode.CorrectLevel.M });
+        const size = el.classList.contains("id-qr") ? 72 : 128;
+        new QRCode(el, { text: link, width: size, height: size, correctLevel: QRCode.CorrectLevel.M });
       });
+    }
+
+    function printIdCard(index) {
+      const card = document.getElementById("idPair" + index);
+      if (!card) return;
+      document.querySelectorAll(".id-pair").forEach(el => el.classList.remove("print-target"));
+      card.classList.add("print-target");
+      document.body.classList.add("printing-id");
+      window.print();
+      document.body.classList.remove("printing-id");
+      card.classList.remove("print-target");
     }
 
     function inductionPhotoFailed(img) {
