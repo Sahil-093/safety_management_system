@@ -98,6 +98,20 @@ function inductionWriteError_(err) {
   return { success: false, message: message };
 }
 
+function listInductionEmployees() {
+  const rows = readInductionRows_();
+  const start = inductionHeaderIndex_(rows) + 1;
+  const people = [];
+  for (let i = start; i < rows.length; i++) {
+    const name = String(rows[i][1] || "").trim();
+    const id = inductionIdText_(rows[i][3]);
+    if (!name && !id) continue;
+    people.push(inductionRecord_(rows[i], i + 1));
+  }
+  people.reverse();
+  return people;
+}
+
 function searchInductionLog(query) {
   const q = String(query || "").trim().toLowerCase();
   if (q.length < 2) return [];

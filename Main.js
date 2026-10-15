@@ -47,6 +47,8 @@ function apiResponse_(params) {
       result = updateGeneratorRecord(payload, user);
     } else if (params.action === "inductionSearch") {
       result = { records: searchInductionLog(params.q || "") };
+    } else if (params.action === "inductionList") {
+      result = { records: listInductionEmployees() };
     } else if (params.action === "induction") {
       result = recordInduction(payload, user);
     } else if (params.action === "inductionUpdate") {
