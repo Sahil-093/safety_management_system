@@ -112,28 +112,84 @@ function listInductionEmployees() {
   return people;
 }
 
+function inductionQueryHit_(name, id, q, qDigits) {
+  const nameHit = String(name || "").toLowerCase().indexOf(q) !== -1;
+  const idDigits = String(id || "").replace(/\D/g, "");
+  let idHit = false;
+  if (id && qDigits.length >= 8) idHit = idDigits === qDigits;
+  else if (id && qDigits.length >= 2) idHit = idDigits.indexOf(qDigits) !== -1;
+  else if (id) idHit = String(id).toLowerCase().indexOf(q) !== -1;
+  return nameHit || idHit;
+}
+
 function searchInductionLog(query) {
   const q = String(query || "").trim().toLowerCase();
   if (q.length < 2) return [];
   const rows = readInductionRows_();
   const start = inductionHeaderIndex_(rows) + 1;
   const qDigits = q.replace(/\D/g, "");
+  const inductionIds = {};
+  const byId = {};
   const records = [];
   for (let i = start; i < rows.length; i++) {
     const name = String(rows[i][1] || "").trim();
     const id = inductionIdText_(rows[i][3]);
     if (!name && !id) continue;
-    const nameHit = name.toLowerCase().indexOf(q) !== -1;
+    const rec = inductionRecord_(rows[i], i + 1);
+    rec.source = "induction";
+    rec.inducted = true;
     const idDigits = id.replace(/\D/g, "");
-    let idHit = false;
-    if (id && qDigits.length >= 8) idHit = idDigits === qDigits;
-    else if (id && qDigits.length >= 2) idHit = idDigits.indexOf(qDigits) !== -1;
-    else if (id) idHit = id.toLowerCase().indexOf(q) !== -1;
-    if (!nameHit && !idHit) continue;
-    records.push(inductionRecord_(rows[i], i + 1));
+    if (idDigits) {
+      inductionIds[idDigits] = true;
+      if (!byId[idDigits]) byId[idDigits] = [];
+      byId[idDigits].push(rec);
+    }
+    if (inductionQueryHit_(name, id, q, qDigits)) records.push(rec);
   }
   records.reverse();
-  return attachInductionPhotos_(records.slice(0, 40));
+
+  const roster = readEmployeeRoster_();
+  const seen = {};
+  records.forEach(function (rec) { seen[rec.sheetRow] = true; });
+  const extras = [];
+  roster.forEach(function (person) {
+    const idDigits = String(person.idNumber || "").replace(/\D/g, "");
+    const hit = inductionQueryHit_(person.name, person.idNumber, q, qDigits);
+    if (idDigits && inductionIds[idDigits]) {
+      (byId[idDigits] || []).forEach(function (rec) {
+        if (person.photoUrl) rec.photoUrl = person.photoUrl;
+        if (person.contact) rec.contact = person.contact;
+        if (person.email) rec.email = person.email;
+        if (person.submittedBy) rec.submittedBy = person.submittedBy;
+        if (hit && !seen[rec.sheetRow]) {
+          records.push(rec);
+          seen[rec.sheetRow] = true;
+        }
+      });
+      return;
+    }
+    if (!hit) return;
+    extras.push(person);
+  });
+  extras.reverse();
+  return attachInductionPhotos_(publishRosterPhotos_(extras.concat(records).slice(0, 40)));
+}
+
+function publishRosterPhotos_(records) {
+  const cache = CacheService.getScriptCache();
+  records.forEach(function (rec) {
+    const match = String(rec.photoUrl || "").match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (!match) return;
+    const key = "photo-public-" + match[1];
+    if (cache.get(key)) return;
+    try {
+      DriveApp.getFileById(match[1]).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      cache.put(key, "1", 21600);
+    } catch (err) {
+      try { cache.put(key, "0", 300); } catch (ignore) {}
+    }
+  });
+  return records;
 }
 
 var INDUCTION_PHOTO_FOLDER = "SBARC Induction Photos";
@@ -198,6 +254,7 @@ function attachInductionPhotos_(records) {
   let map = {};
   try { map = inductionPhotoMap_(); } catch (err) { map = {}; }
   for (let i = 0; i < records.length; i++) {
+    if (records[i].photoUrl) continue;
     const name = inductionPhotoFileName_(records[i].serial, records[i].idNumber);
     records[i].photoUrl = map[name] ? inductionPhotoUrl_(map[name]) : "";
   }
@@ -346,4 +403,98 @@ function deleteInductionRecord(formData) {
   } catch (err) {
     return inductionWriteError_(err);
   }
+}
+
+var EMPLOYEE_SPREADSHEET_ID = "1KhkV4-yBQi_PgYedq0VZaTPhviB2_zzxRrdKjJk-VIg";
+var EMPLOYEE_SHEET_GID = 1794678974;
+
+function employeeRosterTab_(ss) {
+  const sheets = ss.getSheets();
+  for (let i = 0; i < sheets.length; i++) {
+    if (sheets[i].getSheetId() === EMPLOYEE_SHEET_GID) return sheets[i];
+  }
+  return null;
+}
+
+function readEmployeeRosterRows_() {
+  try {
+    const ss = SpreadsheetApp.openById(EMPLOYEE_SPREADSHEET_ID);
+    const sheet = employeeRosterTab_(ss);
+    if (!sheet) throw new Error("Employee sheet tab was not found.");
+    return sheet.getDataRange().getDisplayValues();
+  } catch (err) {
+    const url = "https://docs.google.com/spreadsheets/d/" + EMPLOYEE_SPREADSHEET_ID +
+      "/export?format=csv&gid=" + EMPLOYEE_SHEET_GID;
+    const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true });
+    if (response.getResponseCode() !== 200) throw err;
+    return Utilities.parseCsv(response.getContentText());
+  }
+}
+
+function employeeHeaderMap_(header) {
+  const map = {};
+  for (let i = 0; i < header.length; i++) {
+    map[String(header[i] || "").trim().toLowerCase()] = i;
+  }
+  return map;
+}
+
+function employeeCell_(row, map, name) {
+  const index = map[name];
+  if (index === undefined) return "";
+  return row[index];
+}
+
+function employeePhotoUrl_(value) {
+  const text = String(value || "").trim();
+  const open = text.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  const file = text.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  const id = open ? open[1] : (file ? file[1] : "");
+  if (id) return "https://lh3.googleusercontent.com/d/" + id + "=w400";
+  if (/^https?:\/\//i.test(text)) return text;
+  return "";
+}
+
+function readEmployeeRoster_() {
+  let rows = [];
+  try { rows = readEmployeeRosterRows_(); } catch (err) { return []; }
+  if (!rows.length) return [];
+  let headerAt = 0;
+  for (let i = 0; i < Math.min(rows.length, 5); i++) {
+    if (rows[i].join(" ").toLowerCase().indexOf("employee name") !== -1) {
+      headerAt = i;
+      break;
+    }
+  }
+  const map = employeeHeaderMap_(rows[headerAt]);
+  const people = [];
+  for (let i = headerAt + 1; i < rows.length; i++) {
+    const name = String(employeeCell_(rows[i], map, "employee name") || "").trim();
+    const idNumber = inductionIdText_(employeeCell_(rows[i], map, "employee id/iqama"));
+    if (!name && !idNumber) continue;
+    people.push({
+      sheetRow: 0,
+      source: "roster",
+      inducted: false,
+      serial: "",
+      name: name,
+      sticker: "",
+      idNumber: idNumber,
+      position: String(employeeCell_(rows[i], map, "employee profession") || "").trim(),
+      day: "",
+      month: "",
+      year: "",
+      inductionDate: "",
+      dateIso: "",
+      company: String(employeeCell_(rows[i], map, "company name") || "").trim(),
+      trainer: "",
+      notes: "",
+      contact: String(employeeCell_(rows[i], map, "employee contact") || "").trim(),
+      email: String(employeeCell_(rows[i], map, "email address") || "").trim(),
+      submittedBy: String(employeeCell_(rows[i], map, "submitted by") || "").trim(),
+      submittedAt: String(employeeCell_(rows[i], map, "timestamp") || "").trim(),
+      photoUrl: employeePhotoUrl_(employeeCell_(rows[i], map, "employee photo"))
+    });
+  }
+  return people;
 }
