@@ -449,7 +449,7 @@
       border-bottom-left-radius: 50% 36px;
       border-bottom-right-radius: 50% 36px;
     }
-    .id-photo, .id-mark {
+    .id-photo {
       width: 108px;
       height: 108px;
       border-radius: 50%;
@@ -496,18 +496,31 @@
     }
     .id-qr { width: 72px; height: 72px; line-height: 0; }
     .id-qr img, .id-qr canvas { width: 72px; height: 72px; }
-    .id-back .id-top { height: 64px; }
-    .id-mark { margin-top: -48px; }
+    .id-back .id-top { height: 78px; }
+    .id-mark {
+      width: 136px;
+      height: 136px;
+      margin: -78px auto 8px;
+      border-radius: 50%;
+      border: 5px solid #e10600;
+      background: #fff;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
+    }
     .id-gear, .brand-logo { object-fit: contain; display: block; }
-    .id-gear { width: 82px; height: 82px; }
+    .id-gear { width: 108px; height: 108px; }
+    .brand-logo { width: 58px; height: 58px; }
     .id-mark img {
       width: 100%;
       height: 100%;
       object-fit: cover;
       transform: scale(1.22);
     }
-    .brand-logo { width: 40px; height: 40px; }
-    .login-logo { width: 76px; height: 76px; object-fit: contain; }
+    .login-logo { width: 96px; height: 96px; object-fit: contain; }
     .id-terms-title {
       text-align: center;
       font-weight: 800;
