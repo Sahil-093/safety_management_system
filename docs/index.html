@@ -712,6 +712,17 @@
         </button>
       </div>
 
+      <div class="p-2 mb-3 bg-white rounded-3 border shadow-sm" id="equipmentFocusBox" style="display: none;">
+        <div class="d-flex flex-wrap gap-2">
+          <button type="button" class="sub-filter-btn active" id="focusEquipBtn" onclick="setEquipmentFocus('equipment')">
+            <i class="fa-solid fa-truck-monster text-primary me-1"></i>Equipment
+          </button>
+          <button type="button" class="sub-filter-btn" id="focusOperatorBtn" onclick="setEquipmentFocus('operator')">
+            <i class="fa-solid fa-id-card me-1"></i>Operators
+          </button>
+        </div>
+      </div>
+
       <!-- GENERATOR SUB-CATEGORIES ROW -->
       <div class="p-2 mb-3 bg-white rounded-3 border shadow-sm" id="generatorSubFilterBox" style="display: none;">
         <div class="small fw-bold text-muted mb-1 px-1">GENERATOR SUB-ITEMS:</div>
@@ -1248,6 +1259,7 @@
     let generatorRecords = [];
     let scaffoldRecords = [];
     let statusFilter = "all";
+    let equipmentFocus = "equipment";
     let equipModalObj = null;
     let genModalObj = null;
     let activeCategory = "ALL";
@@ -1928,13 +1940,24 @@
       return generatorRecords.concat(equipmentRecords, scaffoldRecords);
     }
 
-    function statusValues(record) {
-      return (record.statuses || []).map(item => String(item.value || "").trim().toLowerCase());
+    function focusedStatuses(record) {
+      const statuses = record.statuses || [];
+      const equipmentRow = record.category === "Equipment" || record.equipmentType;
+      if (activeCategory !== "Equipment" || !equipmentRow) return statuses;
+      if (equipmentFocus === "operator") {
+        return statuses.filter(item => item.label === "Licence" || item.label === "Operator 3rd party");
+      }
+      return statuses.filter(item => item.label === "Equipment 3rd party" || item.label === "Insurance" || item.label === "HERC");
     }
 
-    function matchesStatus(record, filter) {
+    function statusValues(record, useFocus) {
+      const statuses = useFocus ? focusedStatuses(record) : (record.statuses || []);
+      return statuses.map(item => String(item.value || "").trim().toLowerCase());
+    }
+
+    function matchesStatus(record, filter, useFocus) {
       if (record.outOfService) return filter === "outofservice" || filter === "all";
-      const values = statusValues(record);
+      const values = statusValues(record, useFocus);
       const expired = values.includes("expired");
       const missing = values.includes("not available") || values.includes("no");
       const valid = values.includes("valid") && !expired && !missing;
@@ -1951,10 +1974,10 @@
       document.getElementById('countEquip').innerText = equipmentRecords.length;
       document.getElementById('countScaff').innerText = scaffoldRecords.length;
       const current = recordsForCategory();
-      document.getElementById('countValid').innerText = current.filter(row => matchesStatus(row, "valid")).length;
-      document.getElementById('countExpired').innerText = current.filter(row => matchesStatus(row, "expired")).length;
-      document.getElementById('countMissing').innerText = current.filter(row => matchesStatus(row, "missing")).length;
-      document.getElementById('countOut').innerText = current.filter(row => matchesStatus(row, "outofservice")).length;
+      document.getElementById('countValid').innerText = current.filter(row => matchesStatus(row, "valid", true)).length;
+      document.getElementById('countExpired').innerText = current.filter(row => matchesStatus(row, "expired", true)).length;
+      document.getElementById('countMissing').innerText = current.filter(row => matchesStatus(row, "missing", true)).length;
+      document.getElementById('countOut').innerText = current.filter(row => matchesStatus(row, "outofservice", true)).length;
       document.getElementById('countStatusAll').innerText = current.length;
       renderHome();
     }
@@ -1971,7 +1994,8 @@
 
     function searchPlaceholder() {
       if (activeCategory === "Generator") return "Search zone, cluster, inspector";
-      if (activeCategory === "Equipment") return "Search plate, type, operator, contractor";
+      if (activeCategory === "Equipment" && equipmentFocus === "operator") return "Search operator, iqama, equipment";
+      if (activeCategory === "Equipment") return "Search plate, type, contractor";
       if (activeCategory === "Scaffolding") return "Search scaffold, zone, inspector";
       return "Search all inspections";
     }
@@ -2020,6 +2044,16 @@
       document.getElementById('filterBtnEquip').classList.toggle('active', cat === 'Equipment');
       document.getElementById('filterBtnScaff').classList.toggle('active', cat === 'Scaffolding');
       document.getElementById('generatorSubFilterBox').style.display = 'none';
+      document.getElementById('equipmentFocusBox').style.display = cat === 'Equipment' ? 'block' : 'none';
+      syncSearchBox();
+      updateSheetCounts();
+      renderSheetCards();
+    }
+
+    function setEquipmentFocus(focus) {
+      equipmentFocus = focus === "operator" ? "operator" : "equipment";
+      document.getElementById('focusEquipBtn').classList.toggle('active', equipmentFocus === 'equipment');
+      document.getElementById('focusOperatorBtn').classList.toggle('active', equipmentFocus === 'operator');
       syncSearchBox();
       updateSheetCounts();
       renderSheetCards();
@@ -2259,6 +2293,12 @@
       return "status-na";
     }
 
+    function equipmentDetailLine(label, value) {
+      const text = String(value || "").trim();
+      if (!text) return "";
+      return `<div class="equip-line"><span>${label}</span><strong>${escapeHtml(text)}</strong></div>`;
+    }
+
     function statusChip(label, value) {
       const shown = value || "—";
       return `<div class="equip-line"><span>${label}</span><span class="${statusClass(value)}">${escapeHtml(shown)}</span></div>`;
@@ -2266,10 +2306,10 @@
 
     function renderSheetCards() {
       const container = document.getElementById('pendingContainer');
-      const names = { ALL: "All Inspections", Generator: "Generator", Equipment: "Equipment", Scaffolding: "Scaffolding" };
+      const names = { ALL: "All Inspections", Generator: "Generator", Equipment: equipmentFocus === "operator" ? "Operators" : "Equipment", Scaffolding: "Scaffolding" };
       const statusNames = { all: "All Records", valid: "Valid", expired: "Expired", missing: "Not Available", outofservice: "Out of Service" };
       const query = String(searchQueries[activeCategory] || "").trim();
-      const rows = recordsForCategory().filter(row => matchesStatus(row, statusFilter) && matchesSearch(row));
+      const rows = recordsForCategory().filter(row => matchesStatus(row, statusFilter, true) && matchesSearch(row));
       document.getElementById('currentCategoryTitle').innerText = (names[activeCategory] || "Inspections") + " · " + (statusNames[statusFilter] || "All Records") + (query ? " · " + rows.length + " found" : "");
       if (!rows.length) {
         container.innerHTML = `
@@ -2283,18 +2323,26 @@
       let html = "";
       rows.forEach(row => {
         if (row.category === "Equipment" || row.equipmentType) {
-          const title = row.equipmentType || "Equipment";
-          const brandPlate = [row.brand, row.plate].filter(Boolean).join(" · ");
-          const chips = (row.statuses || []).filter(item => chipMatches(item.value, statusFilter)).map(item => statusChip(item.label, item.value)).join("");
+          const operatorView = activeCategory === "Equipment" && equipmentFocus === "operator";
+          const title = operatorView ? (row.operatorName || "Operator") : (row.equipmentType || "Equipment");
+          const brandPlate = operatorView
+            ? [row.equipmentType, row.plate].filter(Boolean).join(" · ")
+            : [row.brand, row.plate].filter(Boolean).join(" · ");
+          const chips = focusedStatuses(row).filter(item => chipMatches(item.value, statusFilter)).map(item => statusChip(item.label, item.value)).join("");
+          const detail = operatorView
+            ? equipmentDetailLine("Iqama", row.operatorId) + equipmentDetailLine("Licence expiry", row.licenceExpiry) + equipmentDetailLine("3rd party issue", row.operatorIssue) + equipmentDetailLine("3rd party expiry", row.operatorExpiry)
+            : (activeCategory === "Equipment"
+              ? equipmentDetailLine("Sticker No.", row.stickerNo) + equipmentDetailLine("3rd party issue", row.equipIssue) + equipmentDetailLine("3rd party expiry", row.equipExpiry)
+              : `<div class="equip-line"><span>Operator</span><strong>${escapeHtml(row.operatorName || "—")}</strong></div>`);
           html += `
             <div class="card card-custom card-task p-3 mb-2">
               <div class="task-top">
-                <div class="task-id"><span class="fw-bold text-dark">${escapeHtml(title)}</span><span class="badge-cat">Equipment</span></div>
+                <div class="task-id"><span class="fw-bold text-dark">${escapeHtml(title)}</span><span class="badge-cat">${operatorView ? "Operator" : "Equipment"}</span></div>
                 <span class="text-muted small">${escapeHtml(row.timestamp || "")}</span>
               </div>
               <div class="task-title">${escapeHtml(brandPlate || row.plate || "")}</div>
               <div class="task-place">${escapeHtml(row.contractor || "")}</div>
-              <div class="equip-line"><span>Operator</span><strong>${escapeHtml(row.operatorName || "—")}</strong></div>
+              ${detail}
               ${row.outOfService ? '<div class="equip-line"><span>Service</span><span class="status-out">Out of Service</span></div>' : ""}
               ${chips}
               <div class="task-foot">
