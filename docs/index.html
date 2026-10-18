@@ -488,7 +488,9 @@
       padding: 4px 12px;
     }
     .id-rows { padding: 0 18px 4px; font-size: 0.92rem; font-weight: 700; }
-    .id-row { display: grid; grid-template-columns: 88px 1fr; gap: 8px; margin: 3px 0; }
+    .id-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 3px 0; }
+    .id-row span:first-child { text-align: left; }
+    .id-row span:last-child { text-align: right; }
     .id-foot {
       display: flex;
       flex-wrap: nowrap;
@@ -563,10 +565,19 @@
     }
     .no-induction-card .fw-bold,
     .no-induction-card .small { color: #b91c1c; }
+    .equip-line.field-line {
+      display: grid;
+      grid-template-columns: minmax(120px, 46%) minmax(0, 1fr);
+      column-gap: 16px;
+      align-items: baseline;
+    }
+    .equip-line.field-line > span { text-align: left; }
     .field-line strong {
       text-align: right;
+      justify-self: stretch;
+      width: 100%;
+      max-width: none;
       overflow-wrap: anywhere;
-      max-width: 58%;
     }
     @media (max-width: 520px) {
       .task-top {
