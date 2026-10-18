@@ -176,7 +176,7 @@ function searchInductionLog(query) {
     extras.push(person);
   });
   extras.reverse();
-  return attachInductionPhotos_(publishRosterPhotos_(extras.concat(records).slice(0, 40)));
+  return attachInductionPhotos_(publishRosterPhotos_(extras.concat(records).slice(0, 250)));
 }
 
 function publishRosterPhotos_(records) {
