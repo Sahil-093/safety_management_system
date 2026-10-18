@@ -4,7 +4,7 @@
  * Failed checks also open an item on the main Action_Tracker.
  */
 const EQUIPMENT_SPREADSHEET_ID = "12M-quo3ISq6KNg6c2jjtFW30EjuwofUJ-0jkQqtcLPk";
-const EQUIPMENT_SHEET_GID = 1198663290;
+const EQUIPMENT_SHEET_GID = 555123456;
 
 function recordEquipmentInspection(formData, user) {
   try {
@@ -83,7 +83,9 @@ function getEquipmentRegister() {
   try {
     const rows = readEquipmentRows_();
     const records = [];
-    for (let i = 2; i < rows.length; i++) {
+    const headerRow = equipmentHeaderIndex_(rows);
+    const outCol = equipmentColumnIndex_(rows[headerRow], "out of service");
+    for (let i = headerRow + 1; i < rows.length; i++) {
       const row = rows[i];
       const contractor = String(row[1] || "").trim();
       const equipmentType = String(row[2] || "").trim();
@@ -124,6 +126,7 @@ function getEquipmentRegister() {
         contact: String(row[19] || "").trim(),
         inspectedBy: String(row[20] || "").trim(),
         remarks: String(row[21] || "").trim(),
+        outOfService: outCol >= 0 && isOutOfService_(row[outCol]),
         category: "Equipment",
         statuses: [
           { label: "Equipment 3rd party", value: equipThirdParty },
@@ -144,7 +147,7 @@ function getEquipmentRegister() {
 function updateEquipmentRecord(formData, user) {
   try {
     const row = parseInt(formData.sheetRow, 10);
-    if (!row || row < 3) return { success: false, message: "Invalid equipment row." };
+    if (!row || row < 2) return { success: false, message: "Invalid equipment row." };
 
     const equipSs = SpreadsheetApp.openById(EQUIPMENT_SPREADSHEET_ID);
     const equipSheet = equipSs.getSheets().find(function (sheet) {
@@ -183,10 +186,85 @@ function updateEquipmentRecord(formData, user) {
     values.forEach(function (pair) {
       equipSheet.getRange(row, pair[0]).setValue(pair[1] || "");
     });
+    writeOutOfService_(equipSheet, row, formData.outOfService);
     return { success: true, message: "Equipment record updated." };
   } catch (err) {
     return { success: false, message: err.toString() };
   }
+}
+
+function removeEquipmentRecord(formData, user) {
+  try {
+    if (!equipmentActorIsManager_(user)) {
+      return { success: false, message: "Only a manager can remove equipment." };
+    }
+    const row = parseInt(formData.sheetRow, 10);
+    if (!row || row < 2) return { success: false, message: "Invalid equipment row." };
+
+    const equipSs = SpreadsheetApp.openById(EQUIPMENT_SPREADSHEET_ID);
+    const equipSheet = equipSs.getSheets().find(function (sheet) {
+      return sheet.getSheetId() === EQUIPMENT_SHEET_GID;
+    });
+    if (!equipSheet) return { success: false, message: "Equipment sheet tab was not found." };
+
+    const width = Math.max(equipSheet.getLastColumn(), 19);
+    const values = equipSheet.getRange(row, 1, 1, width).getValues()[0];
+    const currentPlate = String(values[4] || "").trim();
+    const originalPlate = String(formData.originalPlate || "").trim();
+    if (originalPlate && currentPlate && currentPlate !== originalPlate) {
+      return { success: false, message: "This row changed in the sheet. Refresh and try again." };
+    }
+    const failed = isEquipmentFail_(values[5]) || isEquipmentFail_(values[11]) ||
+      isEquipmentFail_(values[14]) || isEquipmentFail_(values[17]) || isEquipmentFail_(values[18]);
+    if (!failed) {
+      return { success: false, message: "Requirements are complete, so this equipment cannot be removed." };
+    }
+
+    equipSheet.deleteRow(row);
+    return { success: true, message: "Equipment removed." };
+  } catch (err) {
+    return { success: false, message: err.toString() };
+  }
+}
+
+function equipmentActorIsManager_(user) {
+  const username = String((user && user.username) || "").trim().toLowerCase();
+  if (!username) return false;
+  const sheet = SPREADSHEET.getSheetByName("HSE_TEAM");
+  if (!sheet) return false;
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][2] || "").trim().toLowerCase() !== username) continue;
+    return String(data[i][5] || "").toLowerCase().indexOf("manager") !== -1;
+  }
+  return false;
+}
+
+function equipmentColumnIndex_(header, name) {
+  const target = String(name || "").trim().toLowerCase();
+  const cells = header || [];
+  for (let i = 0; i < cells.length; i++) {
+    if (String(cells[i] || "").trim().toLowerCase() === target) return i;
+  }
+  return -1;
+}
+
+function isOutOfService_(value) {
+  const text = String(value || "").trim().toLowerCase();
+  return text === "out of service" || text === "yes" || text === "true";
+}
+
+function writeOutOfService_(sheet, row, value) {
+  const mark = isOutOfService_(value);
+  const rows = sheet.getDataRange().getValues();
+  const headerRow = equipmentHeaderIndex_(rows);
+  let col = equipmentColumnIndex_(rows[headerRow], "out of service");
+  if (col < 0) {
+    if (!mark) return;
+    col = Math.max(sheet.getLastColumn(), (rows[headerRow] || []).length);
+    sheet.getRange(headerRow + 1, col + 1).setValue("Out of Service");
+  }
+  sheet.getRange(row, col + 1).setValue(mark ? "Out of Service" : "");
 }
 
 function cellIso_(value) {
@@ -200,6 +278,16 @@ function cellIso_(value) {
     return match[3] + "-" + ("0" + match[1]).slice(-2) + "-" + ("0" + match[2]).slice(-2);
   }
   return "";
+}
+
+function equipmentHeaderIndex_(rows) {
+  const limit = Math.min(rows.length, 6);
+  for (let i = 0; i < limit; i++) {
+    const stamp = String(rows[i][0] || "").trim().toLowerCase();
+    const contractor = String(rows[i][1] || "").trim().toLowerCase();
+    if (stamp === "timestamp" || contractor === "contractor name") return i;
+  }
+  return 0;
 }
 
 function readEquipmentRows_() {

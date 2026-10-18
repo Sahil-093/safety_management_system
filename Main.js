@@ -53,6 +53,8 @@ function apiResponse_(params) {
       else result = { equipment: equipment, generator: generator, scaffold: scaffold };
     } else if (params.action === "equipmentUpdate") {
       result = updateEquipmentRecord(payload, user);
+    } else if (params.action === "equipmentRemove") {
+      result = removeEquipmentRecord(payload, user);
     } else if (params.action === "generatorUpdate") {
       result = updateGeneratorRecord(payload, user);
     } else if (params.action === "inductionSearch") {

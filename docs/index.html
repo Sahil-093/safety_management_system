@@ -362,7 +362,7 @@
     }
     .status-ok { background: #ecfdf5; color: #047857; }
     .status-bad { background: #fef2f2; color: #b91c1c; }
-    .status-na { background: #f1f5f9; color: #475569; }
+    .status-na, .status-out { background: #f1f5f9; color: #334155; }
     .equip-line {
       display: flex;
       justify-content: space-between;
@@ -746,6 +746,7 @@
         <button type="button" class="filter-btn" id="statusValid" onclick="setStatusFilter('valid')">Valid <span class="badge bg-light text-dark rounded-pill ms-1 border" id="countValid">0</span></button>
         <button type="button" class="filter-btn" id="statusExpired" onclick="setStatusFilter('expired')">Expired <span class="badge bg-light text-dark rounded-pill ms-1 border" id="countExpired">0</span></button>
         <button type="button" class="filter-btn" id="statusMissing" onclick="setStatusFilter('missing')">Not Available <span class="badge bg-light text-dark rounded-pill ms-1 border" id="countMissing">0</span></button>
+        <button type="button" class="filter-btn" id="statusOut" onclick="setStatusFilter('outofservice')">Out of Service <span class="badge bg-light text-dark rounded-pill ms-1 border" id="countOut">0</span></button>
         <button type="button" class="filter-btn active" id="statusAll" onclick="setStatusFilter('all')">All Records <span class="badge bg-light text-dark rounded-pill ms-1 border" id="countStatusAll">0</span></button>
       </div>
 
@@ -1178,7 +1179,19 @@
           <div class="mb-2"><label class="form-label small fw-semibold">Contact</label><input type="text" class="form-control form-control-sm" id="updContact"></div>
           <div class="mb-2"><label class="form-label small fw-semibold">Inspected By</label><input type="text" class="form-control form-control-sm" id="updInspectedBy"></div>
           <div class="mb-3"><label class="form-label small fw-semibold">Remarks</label><input type="text" class="form-control form-control-sm" id="updRemarks"></div>
+          <div class="bg-light p-3 rounded-3 mb-3 border">
+            <label class="form-label small fw-semibold" for="updService">Service</label>
+            <select class="form-select form-select-sm" id="updService">
+              <option value="">In service</option>
+              <option value="Out of Service">Out of Service</option>
+            </select>
+            <div class="small text-muted mt-2">Choose Out of Service when this equipment has left the site.</div>
+          </div>
           <button type="button" class="btn btn-portal-primary w-100 py-2" id="btnSaveEquipmentUpdate" onclick="saveEquipmentUpdate()">Save update</button>
+          <div id="equipRemoveBox" class="mt-3" style="display: none;">
+            <button type="button" class="btn btn-portal-danger w-100 py-2" id="btnRemoveEquipment" onclick="removeEquipmentFromSite()">Remove</button>
+            <div class="small text-muted mt-2">Manager only. Use when a requirement is Expired or Not Available.</div>
+          </div>
         </div>
       </div>
     </div>
@@ -1920,6 +1933,7 @@
     }
 
     function matchesStatus(record, filter) {
+      if (record.outOfService) return filter === "outofservice" || filter === "all";
       const values = statusValues(record);
       const expired = values.includes("expired");
       const missing = values.includes("not available") || values.includes("no");
@@ -1927,6 +1941,7 @@
       if (filter === "expired") return expired;
       if (filter === "missing") return missing;
       if (filter === "valid") return valid;
+      if (filter === "outofservice") return false;
       return true;
     }
 
@@ -1939,6 +1954,7 @@
       document.getElementById('countValid').innerText = current.filter(row => matchesStatus(row, "valid")).length;
       document.getElementById('countExpired').innerText = current.filter(row => matchesStatus(row, "expired")).length;
       document.getElementById('countMissing').innerText = current.filter(row => matchesStatus(row, "missing")).length;
+      document.getElementById('countOut').innerText = current.filter(row => matchesStatus(row, "outofservice")).length;
       document.getElementById('countStatusAll').innerText = current.length;
       renderHome();
     }
@@ -1948,6 +1964,7 @@
       document.getElementById('statusValid').classList.toggle('active', filter === 'valid');
       document.getElementById('statusExpired').classList.toggle('active', filter === 'expired');
       document.getElementById('statusMissing').classList.toggle('active', filter === 'missing');
+      document.getElementById('statusOut').classList.toggle('active', filter === 'outofservice');
       document.getElementById('statusAll').classList.toggle('active', filter === 'all');
       renderSheetCards();
     }
@@ -1982,7 +1999,7 @@
     function recordSearchText(record) {
       const parts = [];
       if (record.category === "Equipment" || record.equipmentType) {
-        parts.push(record.equipmentType, record.brand, record.plate, record.contractor, record.operatorName, record.operatorId, record.stickerNo, record.contact, record.inspectedBy, record.remarks, record.timestamp, record.equipIssue, record.equipExpiry, record.licence, record.licenceExpiry);
+        parts.push(record.equipmentType, record.brand, record.plate, record.contractor, record.operatorName, record.operatorId, record.stickerNo, record.contact, record.inspectedBy, record.remarks, record.timestamp, record.equipIssue, record.equipExpiry, record.licence, record.licenceExpiry, record.outOfService ? "Out of Service" : "");
       } else {
         parts.push(record.title, record.subtitle, record.when, record.inspector, record.notes, record.category);
       }
@@ -2096,6 +2113,9 @@
       document.getElementById('updContact').value = row.contact || "";
       document.getElementById('updInspectedBy').value = (activeUser && activeUser.name) || row.inspectedBy || "";
       document.getElementById('updRemarks').value = row.remarks || "";
+      document.getElementById('updService').value = row.outOfService ? "Out of Service" : "";
+      const canRemove = isManagerUser() && equipmentRequirementsFail(row);
+      document.getElementById('equipRemoveBox').style.display = canRemove ? "block" : "none";
       equipModalObj.show();
     }
 
@@ -2123,7 +2143,8 @@
         insurance: document.getElementById('updInsurance').value,
         contact: document.getElementById('updContact').value.trim(),
         inspectedBy: document.getElementById('updInspectedBy').value.trim(),
-        remarks: document.getElementById('updRemarks').value.trim()
+        remarks: document.getElementById('updRemarks').value.trim(),
+        outOfService: document.getElementById('updService').value
       };
 
       const btn = document.getElementById('btnSaveEquipmentUpdate');
@@ -2145,6 +2166,47 @@
           btn.innerText = "Save update";
           alert("Update failed: " + err.toString());
         });
+    }
+
+    function isManagerUser() {
+      return String((activeUser && activeUser.role) || "").toLowerCase().indexOf("manager") !== -1;
+    }
+
+    function equipmentRequirementsFail(row) {
+      return (row.statuses || []).some(function (item) {
+        const value = String(item.value || "").trim().toLowerCase();
+        return value === "expired" || value === "not available" || value === "no";
+      });
+    }
+
+    function removeEquipmentFromSite() {
+      const original = equipmentRecords.find(item => item.sheetRow === Number(document.getElementById('updSheetRow').value));
+      if (!original) return;
+      const who = [original.equipmentType, original.plate].filter(Boolean).join(" · ") || "this equipment";
+      if (!confirm("Remove " + who + " from the site? This cannot be undone.")) return;
+      const btn = document.getElementById('btnRemoveEquipment');
+      btn.disabled = true;
+      btn.innerText = "Removing...";
+      callApi("equipmentRemove", {
+        payload: JSON.stringify({
+          sheetRow: original.sheetRow,
+          originalPlate: original.plate || ""
+        }),
+        user: JSON.stringify(activeUser)
+      }).then(res => {
+        btn.disabled = false;
+        btn.innerText = "Remove";
+        if (res && res.success) {
+          equipModalObj.hide();
+          fetchRegisters();
+        } else {
+          alert("Error: " + ((res && res.message) || "Remove failed"));
+        }
+      }).catch(err => {
+        btn.disabled = false;
+        btn.innerText = "Remove";
+        alert("Remove failed: " + err.toString());
+      });
     }
 
     function setGeneratorSubFilter(sub) {
@@ -2205,7 +2267,7 @@
     function renderSheetCards() {
       const container = document.getElementById('pendingContainer');
       const names = { ALL: "All Inspections", Generator: "Generator", Equipment: "Equipment", Scaffolding: "Scaffolding" };
-      const statusNames = { all: "All Records", valid: "Valid", expired: "Expired", missing: "Not Available" };
+      const statusNames = { all: "All Records", valid: "Valid", expired: "Expired", missing: "Not Available", outofservice: "Out of Service" };
       const query = String(searchQueries[activeCategory] || "").trim();
       const rows = recordsForCategory().filter(row => matchesStatus(row, statusFilter) && matchesSearch(row));
       document.getElementById('currentCategoryTitle').innerText = (names[activeCategory] || "Inspections") + " · " + (statusNames[statusFilter] || "All Records") + (query ? " · " + rows.length + " found" : "");
@@ -2233,6 +2295,7 @@
               <div class="task-title">${escapeHtml(brandPlate || row.plate || "")}</div>
               <div class="task-place">${escapeHtml(row.contractor || "")}</div>
               <div class="equip-line"><span>Operator</span><strong>${escapeHtml(row.operatorName || "—")}</strong></div>
+              ${row.outOfService ? '<div class="equip-line"><span>Service</span><span class="status-out">Out of Service</span></div>' : ""}
               ${chips}
               <div class="task-foot">
                 <span class="text-muted small">${escapeHtml(row.inspectedBy || "")}${row.remarks ? " · " + escapeHtml(row.remarks) : ""}</span>
