@@ -632,9 +632,6 @@
       <button type="button" class="side-link" id="navEmployees" onclick="switchView('induction')">
         <i class="fa-solid fa-users"></i> Employee Data
       </button>
-      <button type="button" class="side-link" id="navNew" onclick="switchView('new')">
-        <i class="fa-solid fa-circle-plus"></i> New Inspection
-      </button>
     </aside>
 
     <div class="app-main">
@@ -752,11 +749,16 @@
         <button type="button" class="filter-btn active" id="statusAll" onclick="setStatusFilter('all')">All Records <span class="badge bg-light text-dark rounded-pill ms-1 border" id="countStatusAll">0</span></button>
       </div>
 
-      <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2 px-1">
         <span class="text-muted small fw-bold text-uppercase" id="currentCategoryTitle">All Inspections</span>
-        <button class="btn btn-sm btn-light border" onclick="refreshPending()">
-          <i class="fa-solid fa-arrows-rotate me-1"></i> Refresh
-        </button>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-sm btn-portal-primary" onclick="switchView('new')">
+            <i class="fa-solid fa-circle-plus me-1"></i> New Inspection
+          </button>
+          <button class="btn btn-sm btn-light border" onclick="refreshPending()">
+            <i class="fa-solid fa-arrows-rotate me-1"></i> Refresh
+          </button>
+        </div>
       </div>
 
       <div id="pendingLoader" class="text-center py-5">
@@ -769,6 +771,11 @@
 
     <!-- VIEW B: NEW INSPECTION FORM -->
     <div id="viewNew" style="display: none;">
+      <div class="mb-3 px-1">
+        <button type="button" class="btn btn-sm btn-light border" onclick="switchView('pending')">
+          <i class="fa-solid fa-arrow-left me-1"></i> Inspections
+        </button>
+      </div>
       <div class="d-flex flex-wrap gap-2 mb-3">
         <button type="button" class="filter-btn active" id="typeGenBtn" onclick="setInspectionType('generator')">
           <i class="fa-solid fa-bolt text-warning"></i> Generator
@@ -1342,9 +1349,8 @@
       document.getElementById('viewNew').style.display = viewName === 'new' ? 'block' : 'none';
       document.getElementById('viewInduction').style.display = viewName === 'induction' ? 'block' : 'none';
       document.getElementById('navHome').classList.toggle('active', viewName === 'home');
-      document.getElementById('navInspections').classList.toggle('active', viewName === 'pending');
+      document.getElementById('navInspections').classList.toggle('active', viewName === 'pending' || viewName === 'new');
       document.getElementById('navEmployees').classList.toggle('active', viewName === 'induction');
-      document.getElementById('navNew').classList.toggle('active', viewName === 'new');
       const titles = { home: "Home", pending: "Inspections", induction: "Employee Data", new: "New Inspection" };
       document.getElementById('pageTitle').innerText = titles[viewName] || "Home";
       closeSideNav();
