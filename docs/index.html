@@ -705,7 +705,7 @@
           <i class="fa-solid fa-bolt text-warning"></i> Generator <span class="badge bg-light text-dark rounded-pill ms-1 border" id="countGen">0</span>
         </button>
         <button class="filter-btn" id="filterBtnEquip" onclick="setCategoryFilter('Equipment')">
-          <i class="fa-solid fa-truck-monster text-primary"></i> Equipment <span class="badge bg-light text-dark rounded-pill ms-1 border" id="countEquip">0</span>
+          <i class="fa-solid fa-truck-monster text-primary"></i> PMV <span class="badge bg-light text-dark rounded-pill ms-1 border" id="countEquip">0</span>
         </button>
         <button class="filter-btn" id="filterBtnScaff" onclick="setCategoryFilter('Scaffolding')">
           <i class="fa-solid fa-person-digging text-danger"></i> Scaffolding <span class="badge bg-light text-dark rounded-pill ms-1 border" id="countScaff">0</span>
@@ -715,7 +715,7 @@
       <div class="p-2 mb-3 bg-white rounded-3 border shadow-sm" id="equipmentFocusBox" style="display: none;">
         <div class="d-flex flex-wrap gap-2">
           <button type="button" class="sub-filter-btn active" id="focusEquipBtn" onclick="setEquipmentFocus('equipment')">
-            <i class="fa-solid fa-truck-monster text-primary me-1"></i>Equipment
+            <i class="fa-solid fa-truck-monster text-primary me-1"></i>Equipments
           </button>
           <button type="button" class="sub-filter-btn" id="focusOperatorBtn" onclick="setEquipmentFocus('operator')">
             <i class="fa-solid fa-id-card me-1"></i>Operators
@@ -2306,7 +2306,7 @@
 
     function renderSheetCards() {
       const container = document.getElementById('pendingContainer');
-      const names = { ALL: "All Inspections", Generator: "Generator", Equipment: equipmentFocus === "operator" ? "Operators" : "Equipment", Scaffolding: "Scaffolding" };
+      const names = { ALL: "All Inspections", Generator: "Generator", Equipment: equipmentFocus === "operator" ? "Operators" : "Equipments", Scaffolding: "Scaffolding" };
       const statusNames = { all: "All Records", valid: "Valid", expired: "Expired", missing: "Not Available", outofservice: "Out of Service" };
       const query = String(searchQueries[activeCategory] || "").trim();
       const rows = recordsForCategory().filter(row => matchesStatus(row, statusFilter, true) && matchesSearch(row));
