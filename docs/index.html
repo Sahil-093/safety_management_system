@@ -1033,7 +1033,7 @@
       <div class="d-flex gap-2 mb-3 align-items-stretch">
         <label class="search-box flex-grow-1" for="inductionSearch">
           <i class="fa-solid fa-magnifying-glass"></i>
-          <input id="inductionSearch" type="search" placeholder="Employee name or ID number" autocomplete="off" oninput="onInductionSearch(this.value)">
+          <input id="inductionSearch" type="search" placeholder="Employee name, ID, or company" autocomplete="off" oninput="onInductionSearch(this.value)">
         </label>
         <button type="button" class="btn btn-portal-primary px-3" id="btnNewInduction" onclick="startNewInduction()">New+</button>
       </div>
@@ -1437,7 +1437,7 @@
       else document.getElementById('inductionResults').innerHTML = `
         <div class="card card-custom p-4 text-center">
           <div class="fw-bold">Employee Data</div>
-          <div class="text-muted small">Search an employee name or ID number.</div>
+          <div class="text-muted small">Search an employee name, ID number, or company.</div>
         </div>`;
     }
 

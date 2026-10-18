@@ -145,7 +145,7 @@ function searchInductionLog(query) {
       if (!byId[idDigits]) byId[idDigits] = [];
       byId[idDigits].push(rec);
     }
-    if (inductionQueryHit_(name, id, q, qDigits)) records.push(rec);
+    if (inductionQueryHit_(name, id, q, qDigits) || textIncludes_(rec.company, q)) records.push(rec);
   }
   records.reverse();
 
@@ -164,6 +164,7 @@ function searchInductionLog(query) {
         if (person.submittedBy) rec.submittedBy = person.submittedBy;
         if (person.employeeCode) rec.employeeCode = person.employeeCode;
         if (person.badge) rec.badge = person.badge;
+        if (person.company && !rec.company) rec.company = person.company;
         if (hit && !seen[rec.sheetRow]) {
           records.push(rec);
           seen[rec.sheetRow] = true;
@@ -458,8 +459,14 @@ function employeePhotoUrl_(value) {
   return "";
 }
 
+function textIncludes_(value, q) {
+  const text = String(value || "").toLowerCase();
+  return Boolean(text) && text.indexOf(q) !== -1;
+}
+
 function rosterQueryHit_(person, q, qDigits) {
   if (inductionQueryHit_(person.name, person.idNumber, q, qDigits)) return true;
+  if (textIncludes_(person.company, q)) return true;
   const code = String(person.employeeCode || "").toLowerCase();
   const badge = String(person.badge || "").toLowerCase();
   if (code && code.indexOf(q) !== -1) return true;
