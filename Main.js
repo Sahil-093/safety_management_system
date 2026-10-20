@@ -93,7 +93,7 @@ function apiResponse_(params) {
     } else if (params.action === "teamRemove") {
       result = removeTeamMember(params.token || "", params.username || "");
     } else if (params.action === "observationList") {
-      result = listObservations(params.token || "");
+      result = listObservations(params.token || "", payload);
     } else if (params.action === "observationClose") {
       result = closeObservation(params.token || "", payload);
     } else if (params.action === "observationIssue") {

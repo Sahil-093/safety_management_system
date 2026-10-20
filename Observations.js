@@ -167,10 +167,59 @@ function observationPhotos_(cell) {
   });
 }
 
-function listObservations(token) {
+function observationLoginZones_(actor) {
+  const sheet = teamSheet_();
+  if (!sheet || !actor) return [];
+  const data = sheet.getDataRange().getValues();
+  const me = chatNorm_(actor.username);
+  for (let i = 1; i < data.length; i++) {
+    if (chatNorm_(data[i][2]) !== me) continue;
+    return observationText_(data[i][4]).split(",").map(observationText_).filter(Boolean);
+  }
+  return [];
+}
+
+function observationZoneAllowed_(zone, zones) {
+  if (!zones.length) return false;
+  const broad = zones.some(function (item) {
+    const key = item.toLowerCase().replace(/\s+/g, "");
+    return key === "all" || key === "allsite";
+  });
+  if (broad) return true;
+  const value = observationText_(zone).toLowerCase();
+  return zones.some(function (item) {
+    const key = item.toLowerCase();
+    return value === key || value === "zone " + key || ("zone " + value) === key;
+  });
+}
+
+function observationOpenedMap_() {
+  const raw = PropertiesService.getScriptProperties().getProperty("obs-opened-refs") || "";
+  const map = {};
+  raw.split(",").forEach(function (ref) {
+    const key = observationText_(ref);
+    if (key) map[key] = true;
+  });
+  return map;
+}
+
+function observationRememberOpened_(refs) {
+  const map = observationOpenedMap_();
+  refs.forEach(function (ref) {
+    const key = observationText_(ref);
+    if (key) map[key] = true;
+  });
+  const keys = Object.keys(map).slice(-800);
+  PropertiesService.getScriptProperties().setProperty("obs-opened-refs", keys.join(","));
+}
+
+function listObservations(token, form) {
   const actor = chatActor_(token);
   if (!actor) return { success: false, message: "Sign in again to open observations." };
+  if (!form || !form.recent) return { success: true, records: [] };
   try {
+    const zones = observationLoginZones_(actor);
+    const opened = observationOpenedMap_();
     const sheet = observationSheet_();
     if (!sheet) return { success: false, message: "Observations sheet was not found." };
     const header = observationHeader_(sheet);
@@ -178,22 +227,29 @@ function listObservations(token) {
     if (last < 2) return { success: true, records: [] };
     const values = sheet.getRange(2, 1, last - 1, Math.max(sheet.getLastColumn(), 1)).getValues();
     const col = function (name) { return observationCol_(header.map, name); };
-    const records = [];
+    const picked = [];
     for (let i = 0; i < values.length; i++) {
       const row = values[i];
       const ref = observationText_(observationCell_(row, col("ref. no.")));
       const title = observationText_(observationCell_(row, col("observation title")));
+      const zone = observationText_(observationCell_(row, col("zone")));
       if (!ref && !title) continue;
-      records.push({
-        sheetRow: i + 2,
-        ref: ref,
+      if (!observationZoneAllowed_(zone, zones)) continue;
+      if (ref && opened[ref]) continue;
+      picked.push({ index: i, row: row, ref: ref, zone: zone, title: title });
+    }
+    const records = picked.map(function (item) {
+      const row = item.row;
+      return {
+        sheetRow: item.index + 2,
+        ref: item.ref,
         status: observationText_(observationCell_(row, col("status"))) || "Open",
         date: observationDate_(observationCell_(row, col("timestamp"))),
         when: observationWhen_(observationCell_(row, col("timestamp"))),
         contractor: observationText_(observationCell_(row, col("contractor/subcontractor"))),
-        zone: observationText_(observationCell_(row, col("zone"))),
+        zone: item.zone,
         building: observationText_(observationCell_(row, col("building/cluster"))),
-        title: title,
+        title: item.title,
         villa: observationText_(observationCell_(row, col("villa/part"))),
         description: observationText_(observationCell_(row, col("observation description"))),
         responsible: observationText_(observationCell_(row, col("responsible person name"))),
@@ -202,8 +258,9 @@ function listObservations(token) {
         closeout: observationText_(observationCell_(row, col("closeout response"))),
         closedBy: observationText_(observationCell_(row, col("closed by"))),
         closePhotos: observationPhotos_(observationCell_(row, col("closeout photos")))
-      });
-    }
+      };
+    });
+    observationRememberOpened_(records.map(function (row) { return row.ref; }));
     return { success: true, records: records };
   } catch (err) {
     const message = String(err);

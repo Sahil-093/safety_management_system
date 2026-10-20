@@ -1317,7 +1317,9 @@
     </div>
 
     <div id="viewObservations" style="display: none;">
-      <div class="d-flex justify-content-end mb-2">
+      <div class="d-flex justify-content-end gap-2 mb-2">
+        <button type="button" class="btn btn-sm btn-light border" onclick="clearObservationFilters()">Clear filter</button>
+        <button type="button" class="btn btn-sm btn-light border" id="obsRecentBtn" onclick="loadRecentObservations()">Recent</button>
         <button type="button" class="btn btn-sm btn-portal-primary" onclick="toggleObservationIssue()">+ Issue Observation</button>
       </div>
       <div id="obsIssueCard" class="card card-custom p-3 mb-3" style="display: none;">
@@ -1662,6 +1664,7 @@
     let activeGeneratorSub = "ALL";
     let obsCloseModal = null;
     let observationRecords = [];
+    let observationsLoaded = false;
     let observationCloseTarget = null;
     let searchQueries = { ALL: "", Generator: "", Equipment: "", Scaffolding: "" };
 
@@ -1790,7 +1793,7 @@
       document.getElementById('pageTitle').innerText = titles[viewName] || "Home";
       closeSideNav();
       if (viewName === 'chat') startChat();
-      if (viewName === 'observations') loadObservations();
+      if (viewName === 'observations') showObservations();
       if (viewName === 'team') loadTeamMembers();
       if ((viewName === 'home' || viewName === 'pending') && !generatorRecords.length && !equipmentRecords.length && !scaffoldRecords.length) {
         fetchRegisters();
@@ -3038,25 +3041,71 @@
       return text === "closed" || text === "close" ? "closed" : "open";
     }
 
-    function loadObservations() {
+    function showObservations() {
       if (!activeUser || !activeUser.token) {
         document.getElementById("obsList").innerHTML = '<div class="card card-custom p-4 text-center">Sign out, then sign in again to open observations.</div>';
         return;
       }
-      document.getElementById("obsList").innerHTML = '<div class="card card-custom p-4 text-center text-muted">Loading observations...</div>';
-      callApiPost("observationList", { token: activeUser.token })
+      if (observationsLoaded) {
+        renderObservations();
+        return;
+      }
+      document.getElementById("obsCount").innerText = "";
+      document.getElementById("obsList").innerHTML = '<div class="card card-custom p-4 text-center text-muted">Click Recent to load observations for this login.</div>';
+    }
+
+    function clearObservationFilters() {
+      document.getElementById("obsSearch").value = "";
+      document.getElementById("obsFrom").value = "";
+      document.getElementById("obsTo").value = "";
+      document.getElementById("obsStatus").value = "all";
+      document.getElementById("obsContractor").value = "";
+      document.getElementById("obsZone").value = "";
+      document.getElementById("obsBuilding").value = "";
+      if (observationsLoaded) renderObservations();
+    }
+
+    function loadRecentObservations() {
+      if (!activeUser || !activeUser.token) {
+        document.getElementById("obsList").innerHTML = '<div class="card card-custom p-4 text-center">Sign out, then sign in again to open observations.</div>';
+        return;
+      }
+      const button = document.getElementById("obsRecentBtn");
+      button.disabled = true;
+      if (!observationRecords.length) {
+        document.getElementById("obsList").innerHTML = '<div class="card card-custom p-4 text-center text-muted">Loading recent observations...</div>';
+      }
+      callApiPost("observationList", {
+        token: activeUser.token,
+        payload: JSON.stringify({ recent: true })
+      })
         .then(function (res) {
+          button.disabled = false;
           if (!res.success) {
             document.getElementById("obsList").innerHTML = '<div class="card card-custom p-4 text-center text-danger small">' + escapeHtml(res.message || "Could not load observations.") + "</div>";
             return;
           }
-          observationRecords = res.records || [];
+          const incoming = res.records || [];
+          const merged = {};
+          observationRecords.forEach(function (row) { merged[row.ref || row.sheetRow] = row; });
+          incoming.forEach(function (row) { merged[row.ref || row.sheetRow] = row; });
+          observationRecords = Object.keys(merged).map(function (key) { return merged[key]; });
+          observationRecords.sort(function (a, b) { return String(b.date || "").localeCompare(String(a.date || "")); });
+          observationsLoaded = true;
           fillObservationFilters();
           renderObservations();
+          if (!observationRecords.length) {
+            document.getElementById("obsList").innerHTML = '<div class="card card-custom p-4 text-center text-muted">No new observations for this login.</div>';
+          }
         })
         .catch(function () {
+          button.disabled = false;
           document.getElementById("obsList").innerHTML = '<div class="card card-custom p-4 text-center text-danger small">Could not load observations.</div>';
         });
+    }
+
+    function loadObservations() {
+      loadRecentObservations();
     }
 
     function fillObservationSelect(id, values) {
@@ -3232,10 +3281,15 @@
     function renderObservations() {
       const rows = filteredObservations();
       const box = document.getElementById("obsList");
+      if (!observationsLoaded) {
+        document.getElementById("obsCount").innerText = "";
+        box.innerHTML = '<div class="card card-custom p-4 text-center text-muted">Click Recent to load observations for this login.</div>';
+        return;
+      }
       document.getElementById("obsCount").innerText = rows.length + " observation" + (rows.length === 1 ? "" : "s");
       box.innerHTML = "";
       if (!rows.length) {
-        box.innerHTML = '<div class="card card-custom p-4 text-center text-muted">No observations match these filters.</div>';
+        box.innerHTML = '<div class="card card-custom p-4 text-center text-muted">' + (observationRecords.length ? "No observations match these filters." : "No new observations for this login.") + "</div>";
         return;
       }
       rows.forEach(function (row) {
@@ -3344,7 +3398,13 @@
             return;
           }
           obsCloseModal.hide();
-          loadObservations();
+          if (row) {
+            row.status = "Closed";
+            row.closeout = response;
+            row.closedBy = activeUser.name;
+          }
+          observationsLoaded = true;
+          renderObservations();
         })
         .catch(function (err) {
           button.disabled = false;
