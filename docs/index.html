@@ -761,6 +761,9 @@
         <i class="fa-solid fa-comment"></i> Chat
         <span id="chatBadge" class="chat-badge" style="display: none;">0</span>
       </button>
+      <button type="button" class="side-link" id="navTeam" style="display: none;" onclick="switchView('team')">
+        <i class="fa-solid fa-user-shield"></i> Team
+      </button>
     </aside>
 
     <div class="app-main">
@@ -1193,6 +1196,55 @@
       </div>
     </div>
 
+    </div>
+
+    <div id="viewTeam" style="display: none;">
+      <div id="teamGate" class="card card-custom p-4 text-center" style="display: none;">
+        <div class="fw-bold">Sign in again to manage team logins</div>
+        <div class="text-muted small">Sign out, then sign in with the Admin login.</div>
+      </div>
+      <div id="teamDesk">
+        <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+          <div>
+            <div class="fw-bold">Team</div>
+            <div class="text-muted small">Only an Admin can see and change these logins.</div>
+          </div>
+          <button type="button" class="btn btn-sm btn-portal-primary" onclick="startTeamEdit()">Add</button>
+        </div>
+        <div id="teamFormCard" class="card card-custom p-3 mb-3" style="display: none;">
+          <div class="fw-bold mb-2" id="teamFormTitle">Edit login</div>
+          <input type="hidden" id="teamOriginal">
+          <input type="hidden" id="teamId">
+          <div class="mb-2">
+            <label class="form-label small fw-semibold" for="teamName">Name</label>
+            <input type="text" class="form-control form-control-sm" id="teamName" maxlength="80">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold" for="teamUsername">Username</label>
+            <input type="text" class="form-control form-control-sm" id="teamUsername" maxlength="40" autocomplete="off">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold" for="teamPin">Login code</label>
+            <input type="text" class="form-control form-control-sm" id="teamPin" maxlength="20" autocomplete="off">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold" for="teamZones">Zones</label>
+            <input type="text" class="form-control form-control-sm" id="teamZones" maxlength="120" placeholder="ALL SITE">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold" for="teamRole">Role</label>
+            <input type="text" class="form-control form-control-sm" id="teamRole" maxlength="40" placeholder="Admin">
+          </div>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-portal-primary" id="teamSaveBtn" onclick="saveTeamMember()">Save</button>
+            <button type="button" class="btn btn-light border" onclick="cancelTeamEdit()">Cancel</button>
+          </div>
+          <div id="teamFormError" class="small text-danger mt-2" style="display: none;"></div>
+        </div>
+        <div id="teamList"></div>
+      </div>
+    </div>
+
     <!-- VIEW C: EMPLOYEE DATA -->
     <div id="viewInduction" style="display: none;">
       <div class="d-flex gap-2 mb-3 align-items-stretch">
@@ -1511,6 +1563,7 @@
       document.getElementById('appSection').classList.add('is-open');
       document.getElementById('headerUserName').innerText = activeUser.name;
       document.getElementById('headerUserRole').innerText = activeUser.role + " | " + activeUser.assignedZones.join(", ");
+      document.getElementById('navTeam').style.display = isTeamAdmin() ? "flex" : "none";
       if (!openLinkedEmployee()) switchView('home');
       startChatWatch();
     }
@@ -1536,19 +1589,23 @@
     }
 
     function switchView(viewName) {
+      if (viewName === 'team' && !isTeamAdmin()) viewName = 'home';
       document.getElementById('viewHome').style.display = viewName === 'home' ? 'block' : 'none';
       document.getElementById('viewPending').style.display = viewName === 'pending' ? 'block' : 'none';
       document.getElementById('viewNew').style.display = viewName === 'new' ? 'block' : 'none';
       document.getElementById('viewInduction').style.display = viewName === 'induction' ? 'block' : 'none';
       document.getElementById('viewChat').style.display = viewName === 'chat' ? 'block' : 'none';
+      document.getElementById('viewTeam').style.display = viewName === 'team' ? 'block' : 'none';
       document.getElementById('navHome').classList.toggle('active', viewName === 'home');
       document.getElementById('navInspections').classList.toggle('active', viewName === 'pending' || viewName === 'new');
       document.getElementById('navEmployees').classList.toggle('active', viewName === 'induction');
       document.getElementById('navChat').classList.toggle('active', viewName === 'chat');
-      const titles = { home: "Home", pending: "Inspections", induction: "Employee Data", new: "New Inspection", chat: "Chat" };
+      document.getElementById('navTeam').classList.toggle('active', viewName === 'team');
+      const titles = { home: "Home", pending: "Inspections", induction: "Employee Data", new: "New Inspection", chat: "Chat", team: "Team" };
       document.getElementById('pageTitle').innerText = titles[viewName] || "Home";
       closeSideNav();
       if (viewName === 'chat') startChat();
+      if (viewName === 'team') loadTeamMembers();
       if ((viewName === 'home' || viewName === 'pending') && !generatorRecords.length && !equipmentRecords.length && !scaffoldRecords.length) {
         fetchRegisters();
       } else if (viewName === 'home') {
@@ -2789,6 +2846,132 @@
     let chatPeopleBusy = false;
     let chatThreadBusy = false;
     let chatPeopleCache = [];
+
+    function isTeamAdmin() {
+      return String((activeUser && activeUser.role) || "").trim().toLowerCase() === "admin";
+    }
+
+    function showTeamFormError(message) {
+      const box = document.getElementById("teamFormError");
+      if (!message) {
+        box.style.display = "none";
+        box.innerText = "";
+        return;
+      }
+      box.innerText = message;
+      box.style.display = "block";
+    }
+
+    function loadTeamMembers() {
+      if (!activeUser || !activeUser.token || !isTeamAdmin()) {
+        document.getElementById("teamGate").style.display = "block";
+        document.getElementById("teamDesk").style.display = "none";
+        return;
+      }
+      document.getElementById("teamGate").style.display = "none";
+      document.getElementById("teamDesk").style.display = "block";
+      callApiPost("teamList", { token: activeUser.token })
+        .then(function (res) {
+          if (!res.success) {
+            if (res.message && res.message.indexOf("Sign in again") !== -1) {
+              document.getElementById("teamGate").style.display = "block";
+              document.getElementById("teamDesk").style.display = "none";
+              return;
+            }
+            document.getElementById("teamList").innerHTML = '<div class="card card-custom p-3 text-danger small">' + escapeHtml(res.message || "Could not load team logins.") + "</div>";
+            return;
+          }
+          renderTeamMembers(res.people || []);
+        })
+        .catch(function () {
+          document.getElementById("teamList").innerHTML = '<div class="card card-custom p-3 text-danger small">Could not load team logins.</div>';
+        });
+    }
+
+    function renderTeamMembers(people) {
+      const box = document.getElementById("teamList");
+      box.innerHTML = "";
+      if (!people.length) {
+        box.innerHTML = '<div class="card card-custom p-4 text-center text-muted small">No team logins yet.</div>';
+        return;
+      }
+      people.forEach(function (person) {
+        const card = document.createElement("div");
+        card.className = "card card-custom p-3 mb-2";
+        const self = chatNorm(person.username) === chatNorm(activeUser.username);
+        card.innerHTML = '<div class="d-flex justify-content-between gap-2"><div><div class="fw-bold">' + escapeHtml(person.name) + '</div><div class="small text-muted">' + escapeHtml(person.role) + (person.zones ? " | " + escapeHtml(person.zones) : "") + '</div></div></div><div class="small mt-2">Username: <strong>' + escapeHtml(person.username) + '</strong></div><div class="small">Login code: <strong>' + escapeHtml(person.pin) + '</strong></div><div class="d-flex gap-2 mt-2"><button type="button" class="btn btn-sm btn-light border team-edit">Edit</button>' + (self ? "" : '<button type="button" class="btn btn-sm btn-outline-danger team-remove">Remove</button>') + "</div>";
+        card.querySelector(".team-edit").onclick = function () { startTeamEdit(person); };
+        const removeButton = card.querySelector(".team-remove");
+        if (removeButton) removeButton.onclick = function () { removeTeamMember(person); };
+        box.appendChild(card);
+      });
+    }
+
+    function startTeamEdit(person) {
+      const row = person || {};
+      document.getElementById("teamFormCard").style.display = "block";
+      document.getElementById("teamFormTitle").innerText = row.username ? "Edit login" : "Add login";
+      document.getElementById("teamOriginal").value = row.username || "";
+      document.getElementById("teamId").value = row.id || "";
+      document.getElementById("teamName").value = row.name || "";
+      document.getElementById("teamUsername").value = row.username || "";
+      document.getElementById("teamPin").value = row.pin || "";
+      document.getElementById("teamZones").value = row.zones || "";
+      document.getElementById("teamRole").value = row.role || "";
+      showTeamFormError("");
+      document.getElementById("teamName").focus();
+    }
+
+    function cancelTeamEdit() {
+      document.getElementById("teamFormCard").style.display = "none";
+      showTeamFormError("");
+    }
+
+    function saveTeamMember() {
+      if (!activeUser || !activeUser.token) return;
+      const button = document.getElementById("teamSaveBtn");
+      button.disabled = true;
+      showTeamFormError("");
+      const payload = {
+        originalUsername: document.getElementById("teamOriginal").value,
+        id: document.getElementById("teamId").value,
+        name: document.getElementById("teamName").value,
+        username: document.getElementById("teamUsername").value,
+        pin: document.getElementById("teamPin").value,
+        zones: document.getElementById("teamZones").value,
+        role: document.getElementById("teamRole").value
+      };
+      callApiPost("teamSave", { token: activeUser.token, payload: JSON.stringify(payload) })
+        .then(function (res) {
+          button.disabled = false;
+          if (!res.success) {
+            showTeamFormError(res.message || "Could not save this login.");
+            return;
+          }
+          cancelTeamEdit();
+          loadTeamMembers();
+        })
+        .catch(function () {
+          button.disabled = false;
+          showTeamFormError("Could not save this login.");
+        });
+    }
+
+    function removeTeamMember(person) {
+      if (!person || !activeUser || !activeUser.token) return;
+      if (!confirm("Remove " + person.name + " from the team logins?")) return;
+      callApiPost("teamRemove", { token: activeUser.token, username: person.username })
+        .then(function (res) {
+          if (!res.success) {
+            alert(res.message || "Could not remove this login.");
+            return;
+          }
+          loadTeamMembers();
+        })
+        .catch(function () {
+          alert("Could not remove this login.");
+        });
+    }
 
     function portalUser() {
       return JSON.stringify({

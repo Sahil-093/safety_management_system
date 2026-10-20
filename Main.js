@@ -86,6 +86,12 @@ function apiResponse_(params) {
       result = listChatThread(params.token || "", params.with || "");
     } else if (params.action === "chatSend") {
       result = sendChatMessage(params.token || "", params.with || "", params.text || "");
+    } else if (params.action === "teamList") {
+      result = listTeamMembers(params.token || "");
+    } else if (params.action === "teamSave") {
+      result = saveTeamMember(params.token || "", payload);
+    } else if (params.action === "teamRemove") {
+      result = removeTeamMember(params.token || "", params.username || "");
     } else {
       result = { success: false, message: "Unknown action." };
     }
