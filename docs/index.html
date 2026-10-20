@@ -3041,21 +3041,27 @@
     }
 
     function observationPhotoHtml(photo) {
-      const openUrl = escapeHtml(photo.openUrl || "");
+      const openUrl = escapeHtml(photo.openUrl || photo.imageUrl || "");
       if (!photo.imageUrl) {
         return '<a href="' + openUrl + '" target="_blank" rel="noopener"><span class="small text-muted d-flex h-100 align-items-center justify-content-center">Open photo</span></a>';
       }
-      return '<a href="' + openUrl + '" onclick="openObservationPhoto(event, this)"><img src="' + escapeHtml(photo.imageUrl) + '" alt="Observation photo" onerror="observationPhotoBackup(this)"></a>';
+      return '<a href="' + openUrl + '" target="_blank" rel="noopener" onclick="openObservationPhoto(event, this)"><img src="' + escapeHtml(photo.imageUrl) + '" alt="Observation photo" onerror="observationPhotoBackup(this)"></a>';
     }
 
     function observationPhotoBackup(img) {
       const link = img.parentElement;
       img.remove();
+      link.setAttribute("target", "_blank");
+      link.setAttribute("rel", "noopener");
+      link.removeAttribute("onclick");
       link.innerHTML = '<span class="small text-muted d-flex h-100 align-items-center justify-content-center">Open photo</span>';
     }
 
     function openObservationPhoto(event, link) {
       const img = link.querySelector("img");
+      const laptop = window.matchMedia("(min-width: 860px)").matches;
+      const href = link.getAttribute("href") || "";
+      if (laptop && /^https?:/i.test(href)) return;
       if (!img) return;
       event.preventDefault();
       document.getElementById("obsViewerImage").src = img.src;
