@@ -8,7 +8,7 @@ function teamText_(value) {
 }
 
 function teamRoleIsAdmin_(value) {
-  return teamText_(value).toLowerCase() === "admin";
+  return teamText_(value).toLowerCase() === "hse dc";
 }
 
 function teamAdminError_(actor) {
@@ -16,7 +16,7 @@ function teamAdminError_(actor) {
     return { success: false, message: "Sign in again to manage team logins." };
   }
   if (actor.denied === "sheet") return { success: false, message: "HSE_TEAM tab was not found." };
-  if (actor.denied) return { success: false, message: "Only an Admin can open team logins." };
+  if (actor.denied) return { success: false, message: "Only HSE DC can open team logins." };
   return null;
 }
 
@@ -118,7 +118,7 @@ function saveTeamMember(token, form) {
   }
   const wasAdmin = originalIndex >= 0 && teamRoleIsAdmin_(book.values[originalIndex][5]);
   if (wasAdmin && !teamRoleIsAdmin_(role) && teamAdminCount_(book.values, original) < 1) {
-    return { success: false, message: "Keep at least one Admin login." };
+    return { success: false, message: "Keep at least one HSE DC login." };
   }
   const rowNumber = originalIndex >= 0 ? originalIndex + 1 : book.sheet.getLastRow() + 1;
   const lock = LockService.getScriptLock();
@@ -146,7 +146,7 @@ function removeTeamMember(token, originalUsername) {
   const index = teamFindRow_(book.values, key);
   if (index < 1) return { success: false, message: "That login was not found. Refresh and try again." };
   if (teamRoleIsAdmin_(book.values[index][5]) && teamAdminCount_(book.values, key) < 1) {
-    return { success: false, message: "Keep at least one Admin login." };
+    return { success: false, message: "Keep at least one HSE DC login." };
   }
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
