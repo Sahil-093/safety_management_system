@@ -3,6 +3,15 @@
  * Handles Routing, Core Configuration, and Authentication
  */
 const SPREADSHEET = SpreadsheetApp.getActiveSpreadsheet();
+const TEAM_SPREADSHEET_ID = "1Rip6zKnc9gbHpX-9P3GF69jeYQqu3uH3p6MRF2zTr18";
+
+function teamSpreadsheet_() {
+  return SpreadsheetApp.openById(TEAM_SPREADSHEET_ID);
+}
+
+function teamSheet_() {
+  return teamSpreadsheet_().getSheetByName("HSE_TEAM");
+}
 
 // Web App entry point. action=... serves JSON for the mobile page.
 function doPost(e) {
@@ -96,7 +105,8 @@ function apiResponse_(params) {
 
 // Global user authentication (from HSE_TEAM sheet)
 function authenticateUser(username, pin) {
-  const sheet = SPREADSHEET.getSheetByName("HSE_TEAM");
+  const sheet = teamSheet_();
+  if (!sheet) return { success: false, message: "HSE_TEAM tab was not found." };
   const data = sheet.getDataRange().getValues();
   
   for (let i = 1; i < data.length; i++) {

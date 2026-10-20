@@ -51,14 +51,15 @@ function chatDeny_() {
 }
 
 function chatSheet_() {
-  let sheet = SPREADSHEET.getSheetByName(CHAT_SHEET_NAME);
+  const book = teamSpreadsheet_();
+  let sheet = book.getSheetByName(CHAT_SHEET_NAME);
   if (sheet) return sheet;
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
-    sheet = SPREADSHEET.getSheetByName(CHAT_SHEET_NAME);
+    sheet = book.getSheetByName(CHAT_SHEET_NAME);
     if (!sheet) {
-      sheet = SPREADSHEET.insertSheet(CHAT_SHEET_NAME);
+      sheet = book.insertSheet(CHAT_SHEET_NAME);
       sheet.getRange(1, 1, 1, 5).setNumberFormat("@");
       sheet.getRange(1, 1, 1, 5).setValues([["Time", "From", "To", "From name", "Text"]]);
       sheet.getRange(1, 1, 1, 5).setFontWeight("bold");
@@ -70,7 +71,7 @@ function chatSheet_() {
 }
 
 function chatTeam_() {
-  const sheet = SPREADSHEET.getSheetByName("HSE_TEAM");
+  const sheet = teamSpreadsheet_().getSheetByName("HSE_TEAM");
   if (!sheet) return [];
   const data = sheet.getDataRange().getValues();
   const people = [];
@@ -101,7 +102,7 @@ function chatTimeIso_(value) {
 }
 
 function chatRows_() {
-  const sheet = SPREADSHEET.getSheetByName(CHAT_SHEET_NAME);
+  const sheet = teamSpreadsheet_().getSheetByName(CHAT_SHEET_NAME);
   if (!sheet) return [];
   const last = sheet.getLastRow();
   if (last < 2) return [];

@@ -230,7 +230,7 @@ function removeEquipmentRecord(formData, user) {
 function equipmentActorIsManager_(user) {
   const username = String((user && user.username) || "").trim().toLowerCase();
   if (!username) return false;
-  const sheet = SPREADSHEET.getSheetByName("HSE_TEAM");
+  const sheet = teamSheet_();
   if (!sheet) return false;
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
