@@ -270,6 +270,29 @@
       background: #f8fafc;
       display: block;
     }
+    .obs-table-wrap { overflow-x: auto; }
+    .obs-table { width: 100%; min-width: 860px; border-collapse: collapse; font-size: 0.84rem; }
+    .obs-table th {
+      text-align: left;
+      background: #f0fdf4;
+      color: #166534;
+      font-size: 0.75rem;
+      padding: 8px;
+      border-bottom: 1px solid #bbf7d0;
+      white-space: nowrap;
+    }
+    .obs-table td { padding: 8px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+    .obs-table tr.open td { background: #fff5f5; }
+    .obs-table tr.closed td { background: #f0fdf4; }
+    .obs-pill {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+    .obs-pill.open { background: #fee2e2; color: #b91c1c; }
+    .obs-pill.closed { background: #dcfce7; color: #15803d; }
     .obs-open { color: #b91c1c; }
     .obs-closed { color: #15803d; }
     .card.obs-card.open {
@@ -1454,33 +1477,40 @@
       </div>
       <div class="obs-filters">
         <label class="obs-wide">Search
-          <input id="obsSearch" class="form-control form-control-sm" type="search" placeholder="Ref. no., title, or description" oninput="renderObservations()">
+          <input id="obsSearch" class="form-control form-control-sm" type="search" placeholder="Ref. no., title, or description" oninput="queueObservationFilters()">
         </label>
         <label>Date from
-          <input id="obsFrom" class="form-control form-control-sm" type="date" onchange="renderObservations()">
+          <input id="obsFrom" class="form-control form-control-sm" type="date" onchange="applyObservationFilters()">
         </label>
         <label>Date to
-          <input id="obsTo" class="form-control form-control-sm" type="date" onchange="renderObservations()">
+          <input id="obsTo" class="form-control form-control-sm" type="date" onchange="applyObservationFilters()">
         </label>
         <label>Status
-          <select id="obsStatus" class="form-select form-select-sm" onchange="renderObservations()">
+          <select id="obsStatus" class="form-select form-select-sm" onchange="applyObservationFilters()">
             <option value="all">All</option>
             <option value="open">Open</option>
             <option value="closed">Closed</option>
           </select>
         </label>
         <label>Contractor / Subcontractor
-          <select id="obsContractor" class="form-select form-select-sm" onchange="renderObservations()"></select>
+          <select id="obsContractor" class="form-select form-select-sm" onchange="applyObservationFilters()">
+            <option value="">All</option>
+          </select>
         </label>
         <label>Zone
-          <select id="obsZone" class="form-select form-select-sm" onchange="renderObservations()"></select>
+          <select id="obsZone" class="form-select form-select-sm" onchange="applyObservationFilters()">
+            <option value="">All</option>
+          </select>
         </label>
         <label>Building / Cluster
-          <select id="obsBuilding" class="form-select form-select-sm" onchange="renderObservations()"></select>
+          <select id="obsBuilding" class="form-select form-select-sm" onchange="applyObservationFilters()">
+            <option value="">All</option>
+          </select>
         </label>
       </div>
       <div class="small text-muted mb-2 px-1" id="obsCount"></div>
       <div id="obsList"></div>
+      <div id="obsDetail" style="display: none;"></div>
     </div>
     <div id="obsViewer" class="obs-viewer" style="display: none;" onclick="closeObservationPhoto()">
       <img id="obsViewerImage" alt="Observation photo">
@@ -1754,6 +1784,14 @@
     let activeGeneratorSub = "ALL";
     let obsCloseModal = null;
     let observationRecords = [];
+    let observationRecentRecords = [];
+    let observationSawRecent = false;
+    let observationMode = "none";
+    let observationChoicesLoaded = false;
+    let observationChoiceLists = { contractors: [], zones: [], buildings: [] };
+    let observationFilterTimer = null;
+    let observationRequest = 0;
+    let observationViewKey = "";
     let observationsLoaded = false;
     let observationCloseTarget = null;
     let profilePhotoData = "";
@@ -3199,12 +3237,32 @@
         document.getElementById("obsList").innerHTML = '<div class="card card-custom p-4 text-center">Sign out, then sign in again to open observations.</div>';
         return;
       }
-      if (observationsLoaded) {
-        renderObservations();
-        return;
+      loadObservationChoices();
+      if (observationViewKey) {
+        const row = findObservation(observationViewKey);
+        if (row) {
+          renderObservationDetail(row);
+          return;
+        }
       }
-      document.getElementById("obsCount").innerText = "";
-      document.getElementById("obsList").innerHTML = '<div class="card card-custom p-4 text-center text-muted">Click Recent to load observations for this login.</div>';
+      renderObservations();
+    }
+
+    function observationFilterState() {
+      return {
+        status: document.getElementById("obsStatus").value,
+        from: document.getElementById("obsFrom").value,
+        to: document.getElementById("obsTo").value,
+        contractor: document.getElementById("obsContractor").value,
+        zone: document.getElementById("obsZone").value,
+        building: document.getElementById("obsBuilding").value,
+        q: document.getElementById("obsSearch").value.trim()
+      };
+    }
+
+    function observationFiltersActive(state) {
+      const filter = state || observationFilterState();
+      return !!((filter.status && filter.status !== "all") || filter.from || filter.to || filter.contractor || filter.zone || filter.building || filter.q);
     }
 
     function clearObservationFilters() {
@@ -3215,7 +3273,42 @@
       document.getElementById("obsContractor").value = "";
       document.getElementById("obsZone").value = "";
       document.getElementById("obsBuilding").value = "";
-      if (observationsLoaded) renderObservations();
+      observationViewKey = "";
+      applyObservationFilters();
+    }
+
+    function queueObservationFilters() {
+      if (observationFilterTimer) clearTimeout(observationFilterTimer);
+      observationFilterTimer = setTimeout(applyObservationFilters, 350);
+    }
+
+    function rememberObservationChoices(choices) {
+      if (!choices) return;
+      observationChoicesLoaded = true;
+      observationChoiceLists = {
+        contractors: choices.contractors || [],
+        zones: choices.zones || [],
+        buildings: choices.buildings || []
+      };
+      fillObservationSelect("obsContractor", observationChoiceLists.contractors);
+      fillObservationSelect("obsZone", observationChoiceLists.zones);
+      fillObservationSelect("obsBuilding", observationChoiceLists.buildings);
+      fillObservationFilters();
+    }
+
+    function loadObservationChoices() {
+      if (observationChoicesLoaded || !activeUser || !activeUser.token) return;
+      callApiPost("observationList", { token: activeUser.token, payload: JSON.stringify({}) })
+        .then(function (res) {
+          if (res.success) rememberObservationChoices(res.choices);
+        })
+        .catch(function () {});
+    }
+
+    function storeObservationRecords(records) {
+      observationRecords = records || [];
+      observationRecords.sort(function (a, b) { return String(b.date || "").localeCompare(String(a.date || "")); });
+      observationsLoaded = observationMode !== "none";
     }
 
     function loadRecentObservations() {
@@ -3225,8 +3318,10 @@
       }
       const button = document.getElementById("obsRecentBtn");
       button.disabled = true;
-      if (!observationRecords.length) {
+      observationViewKey = "";
+      if (!observationRecentRecords.length) {
         document.getElementById("obsList").innerHTML = '<div class="card card-custom p-4 text-center text-muted">Loading recent observations...</div>';
+        document.getElementById("obsDetail").style.display = "none";
       }
       callApiPost("observationList", {
         token: activeUser.token,
@@ -3238,21 +3333,55 @@
             document.getElementById("obsList").innerHTML = '<div class="card card-custom p-4 text-center text-danger small">' + escapeHtml(res.message || "Could not load observations.") + "</div>";
             return;
           }
-          const incoming = res.records || [];
+          rememberObservationChoices(res.choices);
           const merged = {};
-          observationRecords.forEach(function (row) { merged[row.ref || row.sheetRow] = row; });
-          incoming.forEach(function (row) { merged[row.ref || row.sheetRow] = row; });
-          observationRecords = Object.keys(merged).map(function (key) { return merged[key]; });
-          observationRecords.sort(function (a, b) { return String(b.date || "").localeCompare(String(a.date || "")); });
-          observationsLoaded = true;
-          fillObservationFilters();
-          renderObservations();
-          if (!observationRecords.length) {
-            document.getElementById("obsList").innerHTML = '<div class="card card-custom p-4 text-center text-muted">No new observations for this login.</div>';
+          observationRecentRecords.forEach(function (row) { merged[row.ref || row.sheetRow] = row; });
+          (res.records || []).forEach(function (row) { merged[row.ref || row.sheetRow] = row; });
+          observationRecentRecords = Object.keys(merged).map(function (key) { return merged[key]; });
+          observationRecentRecords.sort(function (a, b) { return String(b.date || "").localeCompare(String(a.date || "")); });
+          observationSawRecent = true;
+          if (observationFiltersActive()) {
+            applyObservationFilters();
+            return;
           }
+          observationMode = "recent";
+          storeObservationRecords(observationRecentRecords.slice());
+          renderObservations();
         })
         .catch(function () {
           button.disabled = false;
+          document.getElementById("obsList").innerHTML = '<div class="card card-custom p-4 text-center text-danger small">Could not load observations.</div>';
+        });
+    }
+
+    function applyObservationFilters() {
+      if (!activeUser || !activeUser.token) return;
+      observationViewKey = "";
+      const filter = observationFilterState();
+      if (!observationFiltersActive(filter)) {
+        observationMode = observationSawRecent ? "recent" : "none";
+        storeObservationRecords(observationRecentRecords.slice());
+        renderObservations();
+        return;
+      }
+      const request = ++observationRequest;
+      observationMode = "filter";
+      document.getElementById("obsDetail").style.display = "none";
+      document.getElementById("obsList").style.display = "block";
+      document.getElementById("obsList").innerHTML = '<div class="card card-custom p-4 text-center text-muted">Loading observations...</div>';
+      callApiPost("observationList", { token: activeUser.token, payload: JSON.stringify(filter) })
+        .then(function (res) {
+          if (request !== observationRequest) return;
+          if (!res.success) {
+            document.getElementById("obsList").innerHTML = '<div class="card card-custom p-4 text-center text-danger small">' + escapeHtml(res.message || "Could not load observations.") + "</div>";
+            return;
+          }
+          rememberObservationChoices(res.choices);
+          storeObservationRecords(res.records || []);
+          renderObservations();
+        })
+        .catch(function () {
+          if (request !== observationRequest) return;
           document.getElementById("obsList").innerHTML = '<div class="card card-custom p-4 text-center text-danger small">Could not load observations.</div>';
         });
     }
@@ -3285,12 +3414,9 @@
     }
 
     function fillObservationFilters() {
-      fillObservationSelect("obsContractor", observationRecords.map(function (row) { return row.contractor; }));
-      fillObservationSelect("obsZone", observationRecords.map(function (row) { return row.zone; }));
-      fillObservationSelect("obsBuilding", observationRecords.map(function (row) { return row.building; }));
-      fillObservationDataList("obsIssueContractors", observationRecords.map(function (row) { return row.contractor; }));
-      fillObservationDataList("obsIssueZones", observationRecords.map(function (row) { return row.zone; }));
-      fillObservationDataList("obsIssueBuildings", observationRecords.map(function (row) { return row.building; }));
+      fillObservationDataList("obsIssueContractors", observationChoiceLists.contractors);
+      fillObservationDataList("obsIssueZones", observationChoiceLists.zones);
+      fillObservationDataList("obsIssueBuildings", observationChoiceLists.buildings);
     }
 
     function toggleObservationIssue(force) {
@@ -3380,25 +3506,121 @@
         });
     }
 
-    function filteredObservations() {
-      const query = document.getElementById("obsSearch").value.trim().toLowerCase();
-      const from = document.getElementById("obsFrom").value;
-      const to = document.getElementById("obsTo").value;
-      const status = document.getElementById("obsStatus").value;
-      const contractor = document.getElementById("obsContractor").value;
-      const zone = document.getElementById("obsZone").value;
-      const building = document.getElementById("obsBuilding").value;
-      return observationRecords.filter(function (row) {
-        if (status !== "all" && obsStatusKey(row.status) !== status) return false;
-        if (contractor && row.contractor !== contractor) return false;
-        if (zone && row.zone !== zone) return false;
-        if (building && row.building !== building) return false;
-        if (from && (!row.date || row.date < from)) return false;
-        if (to && (!row.date || row.date > to)) return false;
-        if (!query) return true;
-        const haystack = [row.ref, row.title, row.description, row.contractor, row.zone, row.building, row.submittedBy].join(" ").toLowerCase();
-        return haystack.indexOf(query) !== -1;
+    function observationListDate(row) {
+      if (!row || !row.date) return (row && row.when) || "";
+      const parts = String(row.date).split("-");
+      if (parts.length !== 3) return row.date;
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const month = months[Number(parts[1]) - 1];
+      if (!month) return row.date;
+      return Number(parts[2]) + " " + month + " " + parts[0];
+    }
+
+    function observationKey(row) {
+      return String((row && (row.ref || row.sheetRow)) || "");
+    }
+
+    function findObservation(key) {
+      const wanted = String(key || "");
+      return observationRecords.filter(function (row) { return observationKey(row) === wanted; })[0] || null;
+    }
+
+    function replaceObservation(record) {
+      if (!record) return;
+      const key = observationKey(record);
+      [observationRecords, observationRecentRecords].forEach(function (list) {
+        for (let i = 0; i < list.length; i++) {
+          if (observationKey(list[i]) === key) list[i] = record;
+        }
       });
+    }
+
+    function renderObservations() {
+      const box = document.getElementById("obsList");
+      const detail = document.getElementById("obsDetail");
+      detail.style.display = "none";
+      detail.innerHTML = "";
+      box.style.display = "block";
+      if (observationMode === "none") {
+        document.getElementById("obsCount").innerText = "";
+        box.innerHTML = '<div class="card card-custom p-4 text-center text-muted">Click Recent for new observations, or apply a filter to see matching ones.</div>';
+        return;
+      }
+      const rows = observationRecords;
+      document.getElementById("obsCount").innerText = rows.length + " observation" + (rows.length === 1 ? "" : "s");
+      if (!rows.length) {
+        box.innerHTML = '<div class="card card-custom p-4 text-center text-muted">' + (observationMode === "filter" ? "No observations match these filters." : "No new observations for this login. Apply a filter to see older ones.") + "</div>";
+        return;
+      }
+      const table = document.createElement("div");
+      table.className = "card card-custom obs-table-wrap";
+      const head = "<thead><tr><th>Ref</th><th>Status</th><th>Date</th><th>Title</th><th>Zone</th><th>Building</th><th>Contractor</th><th>Submitted by</th><th>Responsible</th><th></th></tr></thead>";
+      table.innerHTML = '<table class="obs-table">' + head + "<tbody></tbody></table>";
+      const body = table.querySelector("tbody");
+      rows.forEach(function (row) {
+        const closed = obsStatusKey(row.status) === "closed";
+        const tr = document.createElement("tr");
+        tr.className = closed ? "closed" : "open";
+        tr.innerHTML = "<td>" + escapeHtml(row.ref || "-") + "</td><td><span class=\"obs-pill " + (closed ? "closed" : "open") + "\">" + (closed ? "Closed" : "Open") + "</span></td><td>" + escapeHtml(observationListDate(row)) + "</td><td>" + escapeHtml(row.title || "Observation") + "</td><td>" + escapeHtml(row.zone || "-") + "</td><td>" + escapeHtml(row.building || "-") + "</td><td>" + escapeHtml(row.contractor || "-") + "</td><td>" + escapeHtml(row.submittedBy || "-") + "</td><td>" + escapeHtml(row.responsible || "-") + '</td><td><button type="button" class="btn btn-sm btn-portal-primary">View</button></td>';
+        tr.querySelector("button").onclick = function () { viewObservation(observationKey(row)); };
+        body.appendChild(tr);
+      });
+      box.innerHTML = "";
+      box.appendChild(table);
+    }
+
+    function viewObservation(key) {
+      const row = findObservation(key);
+      if (!row) return;
+      observationViewKey = observationKey(row);
+      renderObservationDetail(row);
+      const needsPhotos = (row.photoCount || row.closePhotoCount) && !row.photosLoaded;
+      if (!needsPhotos || !activeUser || !activeUser.token) return;
+      callApiPost("observationGet", {
+        token: activeUser.token,
+        payload: JSON.stringify({ ref: row.ref, sheetRow: row.sheetRow })
+      })
+        .then(function (res) {
+          if (!res.success || !res.record || observationViewKey !== observationKey(row)) return;
+          replaceObservation(res.record);
+          renderObservationDetail(res.record);
+        })
+        .catch(function () {
+          row.photosLoaded = true;
+          if (observationViewKey === observationKey(row)) renderObservationDetail(row);
+        });
+    }
+
+    function closeObservationDetail() {
+      observationViewKey = "";
+      renderObservations();
+    }
+
+    function renderObservationDetail(row) {
+      const closed = obsStatusKey(row.status) === "closed";
+      const box = document.getElementById("obsDetail");
+      const list = document.getElementById("obsList");
+      list.style.display = "none";
+      box.style.display = "block";
+      const photos = (row.photos || []).map(observationPhotoHtml).join("");
+      const closePhotos = (row.closePhotos || []).map(observationPhotoHtml).join("");
+      const waiting = (row.photoCount || row.closePhotoCount) && !row.photosLoaded;
+      box.innerHTML = '<button type="button" class="btn btn-sm btn-light border mb-2" id="obsBack">Back to list</button>'
+        + '<article class="card card-custom obs-card p-3 ' + (closed ? "closed" : "open") + '">'
+        + '<div class="d-flex justify-content-between gap-2"><div><div class="small text-muted">' + escapeHtml(row.ref) + " · " + escapeHtml(row.when || observationListDate(row)) + '</div><div class="fw-bold mt-1">' + escapeHtml(row.title || "Observation") + '</div></div><div class="small fw-bold ' + (closed ? "obs-closed" : "obs-open") + '">' + (closed ? "Closed" : "Open") + "</div></div>"
+        + '<div class="small mt-2">' + escapeHtml(row.contractor) + (row.zone ? " · " + escapeHtml(row.zone) : "") + (row.building ? " · " + escapeHtml(row.building) : "") + "</div>"
+        + (row.villa ? '<div class="small text-muted">Villa / Part: ' + escapeHtml(row.villa) + "</div>" : "")
+        + '<div class="mt-2">' + escapeHtml(row.description) + "</div>"
+        + (waiting ? '<div class="small text-muted mt-2">Loading pictures...</div>' : "")
+        + (photos ? '<div class="obs-photos">' + photos + "</div>" : "")
+        + '<div class="small text-muted mt-2">Responsible: ' + escapeHtml(row.responsible || "-") + "<br>Submitted by: " + escapeHtml(row.submittedBy || "-") + "</div>"
+        + (row.closeout ? '<div class="mt-2 p-2 bg-light rounded border"><div class="small fw-bold">Closeout response</div><div class="small">' + escapeHtml(row.closeout) + '</div><div class="small text-muted">' + escapeHtml(row.closedBy || "") + "</div>" + (closePhotos ? '<div class="obs-close-photos">' + closePhotos + "</div>" : "") + "</div>" : "")
+        + (closed ? "" : '<button type="button" class="btn btn-sm btn-portal-primary mt-2" id="obsDetailClose">Close observation</button>')
+        + "</article>";
+      document.getElementById("obsBack").onclick = closeObservationDetail;
+      const closeButton = document.getElementById("obsDetailClose");
+      if (closeButton) closeButton.onclick = function () { openObservationClose(row); };
+      document.getElementById("obsCount").innerText = "";
     }
 
     function observationPhotoHtml(photo) {
@@ -3429,40 +3651,6 @@
     function closeObservationPhoto() {
       document.getElementById("obsViewer").style.display = "none";
       document.getElementById("obsViewerImage").src = "";
-    }
-
-    function renderObservations() {
-      const rows = filteredObservations();
-      const box = document.getElementById("obsList");
-      if (!observationsLoaded) {
-        document.getElementById("obsCount").innerText = "";
-        box.innerHTML = '<div class="card card-custom p-4 text-center text-muted">Click Recent to load observations for this login.</div>';
-        return;
-      }
-      document.getElementById("obsCount").innerText = rows.length + " observation" + (rows.length === 1 ? "" : "s");
-      box.innerHTML = "";
-      if (!rows.length) {
-        box.innerHTML = '<div class="card card-custom p-4 text-center text-muted">' + (observationRecords.length ? "No observations match these filters." : "No new observations for this login.") + "</div>";
-        return;
-      }
-      rows.forEach(function (row) {
-        const closed = obsStatusKey(row.status) === "closed";
-        const card = document.createElement("article");
-        card.className = "card card-custom obs-card p-3 mb-3 " + (closed ? "closed" : "open");
-        const photos = (row.photos || []).map(observationPhotoHtml).join("");
-        const closePhotos = (row.closePhotos || []).map(observationPhotoHtml).join("");
-        card.innerHTML = '<div class="d-flex justify-content-between gap-2"><div><div class="small text-muted">' + escapeHtml(row.ref) + " · " + escapeHtml(row.when || row.date) + '</div><div class="fw-bold mt-1">' + escapeHtml(row.title || "Observation") + '</div></div><div class="small fw-bold ' + (closed ? "obs-closed" : "obs-open") + '">' + (closed ? "Closed" : "Open") + "</div></div>"
-          + '<div class="small mt-2">' + escapeHtml(row.contractor) + (row.zone ? " · " + escapeHtml(row.zone) : "") + (row.building ? " · " + escapeHtml(row.building) : "") + "</div>"
-          + (row.villa ? '<div class="small text-muted">Villa / Part: ' + escapeHtml(row.villa) + "</div>" : "")
-          + '<div class="mt-2">' + escapeHtml(row.description) + "</div>"
-          + (photos ? '<div class="obs-photos">' + photos + "</div>" : "")
-          + '<div class="small text-muted mt-2">Responsible: ' + escapeHtml(row.responsible || "-") + "<br>Submitted by: " + escapeHtml(row.submittedBy || "-") + "</div>"
-          + (row.closeout ? '<div class="mt-2 p-2 bg-light rounded border"><div class="small fw-bold">Closeout response</div><div class="small">' + escapeHtml(row.closeout) + '</div><div class="small text-muted">' + escapeHtml(row.closedBy || "") + "</div>" + (closePhotos ? '<div class="obs-close-photos">' + closePhotos + "</div>" : "") + "</div>" : "")
-          + (closed ? "" : '<button type="button" class="btn btn-sm btn-portal-primary mt-2">Close observation</button>');
-        const button = card.querySelector("button");
-        if (button) button.onclick = function () { openObservationClose(row); };
-        box.appendChild(card);
-      });
     }
 
     function openObservationClose(row) {
@@ -3555,9 +3743,11 @@
             row.status = "Closed";
             row.closeout = response;
             row.closedBy = activeUser.name;
+            replaceObservation(row);
           }
           observationsLoaded = true;
-          renderObservations();
+          if (observationViewKey && row) renderObservationDetail(row);
+          else renderObservations();
         })
         .catch(function (err) {
           button.disabled = false;

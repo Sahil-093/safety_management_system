@@ -104,6 +104,8 @@ function apiResponse_(params) {
       result = clearCredentialRequest(params.token || "", params.username || "");
     } else if (params.action === "observationList") {
       result = listObservations(params.token || "", payload);
+    } else if (params.action === "observationGet") {
+      result = getObservation(params.token || "", payload);
     } else if (params.action === "observationClose") {
       result = closeObservation(params.token || "", payload);
     } else if (params.action === "observationIssue") {

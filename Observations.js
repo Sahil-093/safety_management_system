@@ -213,59 +213,142 @@ function observationRememberOpened_(refs) {
   PropertiesService.getScriptProperties().setProperty("obs-opened-refs", keys.join(","));
 }
 
-function listObservations(token, form) {
+function observationStatusKey_(value) {
+  const text = observationText_(value).toLowerCase();
+  return text === "closed" || text === "close" ? "closed" : "open";
+}
+
+function observationRecord_(row, col, index, withPhotos) {
+  const photosCell = observationCell_(row, col("photos"));
+  const closeCell = observationCell_(row, col("closeout photos"));
+  return {
+    sheetRow: index + 2,
+    ref: observationText_(observationCell_(row, col("ref. no."))),
+    status: observationText_(observationCell_(row, col("status"))) || "Open",
+    date: observationDate_(observationCell_(row, col("timestamp"))),
+    when: observationWhen_(observationCell_(row, col("timestamp"))),
+    contractor: observationText_(observationCell_(row, col("contractor/subcontractor"))),
+    zone: observationText_(observationCell_(row, col("zone"))),
+    building: observationText_(observationCell_(row, col("building/cluster"))),
+    title: observationText_(observationCell_(row, col("observation title"))),
+    villa: observationText_(observationCell_(row, col("villa/part"))),
+    description: observationText_(observationCell_(row, col("observation description"))),
+    responsible: observationText_(observationCell_(row, col("responsible person name"))),
+    submittedBy: observationText_(observationCell_(row, col("submitted by"))),
+    photoCount: observationPhotoList_(photosCell).length,
+    closePhotoCount: observationPhotoList_(closeCell).length,
+    photos: withPhotos ? observationPhotos_(photosCell) : [],
+    closeout: observationText_(observationCell_(row, col("closeout response"))),
+    closedBy: observationText_(observationCell_(row, col("closed by"))),
+    closePhotos: withPhotos ? observationPhotos_(closeCell) : []
+  };
+}
+
+function observationFilterActive_(form) {
+  const incoming = form || {};
+  const status = observationText_(incoming.status).toLowerCase();
+  return !!((status && status !== "all") || observationText_(incoming.from) || observationText_(incoming.to) || observationText_(incoming.contractor) || observationText_(incoming.zone) || observationText_(incoming.building) || observationText_(incoming.q));
+}
+
+function observationMatchesFilter_(record, form) {
+  const incoming = form || {};
+  const status = observationText_(incoming.status).toLowerCase();
+  if (status && status !== "all" && observationStatusKey_(record.status) !== (status === "close" ? "closed" : status)) return false;
+  if (observationText_(incoming.contractor) && record.contractor !== observationText_(incoming.contractor)) return false;
+  if (observationText_(incoming.zone) && record.zone !== observationText_(incoming.zone)) return false;
+  if (observationText_(incoming.building) && record.building !== observationText_(incoming.building)) return false;
+  if (observationText_(incoming.from) && (!record.date || record.date < observationText_(incoming.from))) return false;
+  if (observationText_(incoming.to) && (!record.date || record.date > observationText_(incoming.to))) return false;
+  const query = observationText_(incoming.q).toLowerCase();
+  if (!query) return true;
+  const haystack = [record.ref, record.title, record.description, record.contractor, record.zone, record.building, record.villa, record.submittedBy, record.responsible].join(" ").toLowerCase();
+  return haystack.indexOf(query) !== -1;
+}
+
+function observationRows_(token) {
   const actor = chatActor_(token);
   if (!actor) return { success: false, message: "Sign in again to open observations." };
-  if (!form || !form.recent) return { success: true, records: [] };
+  const zones = observationLoginZones_(actor);
+  const sheet = observationSheet_();
+  if (!sheet) return { success: false, message: "Observations sheet was not found." };
+  const header = observationHeader_(sheet);
+  const last = sheet.getLastRow();
+  const values = last < 2 ? [] : sheet.getRange(2, 1, last - 1, Math.max(sheet.getLastColumn(), 1)).getValues();
+  const col = function (name) { return observationCol_(header.map, name); };
+  const records = [];
+  const choices = { contractors: {}, zones: {}, buildings: {} };
+  for (let i = 0; i < values.length; i++) {
+    const zone = observationText_(observationCell_(values[i], col("zone")));
+    const title = observationText_(observationCell_(values[i], col("observation title")));
+    const ref = observationText_(observationCell_(values[i], col("ref. no.")));
+    if (!ref && !title) continue;
+    if (!observationZoneAllowed_(zone, zones)) continue;
+    const record = observationRecord_(values[i], col, i, false);
+    records.push(record);
+    if (record.contractor) choices.contractors[record.contractor] = true;
+    if (record.zone) choices.zones[record.zone] = true;
+    if (record.building) choices.buildings[record.building] = true;
+  }
+  records.sort(function (a, b) { return String(b.date || "").localeCompare(String(a.date || "")); });
+  return {
+    success: true,
+    records: records,
+    choices: {
+      contractors: Object.keys(choices.contractors).sort(),
+      zones: Object.keys(choices.zones).sort(),
+      buildings: Object.keys(choices.buildings).sort()
+    },
+    values: values,
+    col: col
+  };
+}
+
+function listObservations(token, form) {
+  const incoming = form || {};
   try {
-    const zones = observationLoginZones_(actor);
-    const opened = observationOpenedMap_();
-    const sheet = observationSheet_();
-    if (!sheet) return { success: false, message: "Observations sheet was not found." };
-    const header = observationHeader_(sheet);
-    const last = sheet.getLastRow();
-    if (last < 2) return { success: true, records: [] };
-    const values = sheet.getRange(2, 1, last - 1, Math.max(sheet.getLastColumn(), 1)).getValues();
-    const col = function (name) { return observationCol_(header.map, name); };
-    const picked = [];
-    for (let i = 0; i < values.length; i++) {
-      const row = values[i];
-      const ref = observationText_(observationCell_(row, col("ref. no.")));
-      const title = observationText_(observationCell_(row, col("observation title")));
-      const zone = observationText_(observationCell_(row, col("zone")));
-      if (!ref && !title) continue;
-      if (!observationZoneAllowed_(zone, zones)) continue;
-      if (ref && opened[ref]) continue;
-      picked.push({ index: i, row: row, ref: ref, zone: zone, title: title });
+    const book = observationRows_(token);
+    if (!book.success) return book;
+    let records = [];
+    if (incoming.recent) {
+      const opened = observationOpenedMap_();
+      records = book.records.filter(function (row) { return !row.ref || !opened[row.ref]; });
+      observationRememberOpened_(records.map(function (row) { return row.ref; }));
+    } else if (observationFilterActive_(incoming)) {
+      records = book.records.filter(function (row) { return observationMatchesFilter_(row, incoming); });
     }
-    const records = picked.map(function (item) {
-      const row = item.row;
-      return {
-        sheetRow: item.index + 2,
-        ref: item.ref,
-        status: observationText_(observationCell_(row, col("status"))) || "Open",
-        date: observationDate_(observationCell_(row, col("timestamp"))),
-        when: observationWhen_(observationCell_(row, col("timestamp"))),
-        contractor: observationText_(observationCell_(row, col("contractor/subcontractor"))),
-        zone: item.zone,
-        building: observationText_(observationCell_(row, col("building/cluster"))),
-        title: item.title,
-        villa: observationText_(observationCell_(row, col("villa/part"))),
-        description: observationText_(observationCell_(row, col("observation description"))),
-        responsible: observationText_(observationCell_(row, col("responsible person name"))),
-        submittedBy: observationText_(observationCell_(row, col("submitted by"))),
-        photos: observationPhotos_(observationCell_(row, col("photos"))),
-        closeout: observationText_(observationCell_(row, col("closeout response"))),
-        closedBy: observationText_(observationCell_(row, col("closed by"))),
-        closePhotos: observationPhotos_(observationCell_(row, col("closeout photos")))
-      };
-    });
-    observationRememberOpened_(records.map(function (row) { return row.ref; }));
-    return { success: true, records: records };
+    return { success: true, records: records, choices: book.choices };
   } catch (err) {
     const message = String(err);
     if (/permission|access|authorization/i.test(message)) {
       return { success: false, message: "Share the observations sheet with the portal Google account as Editor." };
+    }
+    return { success: false, message: message };
+  }
+}
+
+function getObservation(token, form) {
+  const incoming = form || {};
+  const ref = observationText_(incoming.ref);
+  const sheetRow = parseInt(incoming.sheetRow, 10);
+  if (!ref && !sheetRow) return { success: false, message: "That observation was not found." };
+  try {
+    const book = observationRows_(token);
+    if (!book.success) return book;
+    let found = -1;
+    for (let i = 0; i < book.records.length; i++) {
+      if (ref && book.records[i].ref === ref) { found = i; break; }
+      if (!ref && book.records[i].sheetRow === sheetRow) { found = i; break; }
+    }
+    if (found < 0) return { success: false, message: "That observation was not found." };
+    const light = book.records[found];
+    const sourceIndex = light.sheetRow - 2;
+    const record = observationRecord_(book.values[sourceIndex], book.col, sourceIndex, true);
+    record.photosLoaded = true;
+    return { success: true, record: record };
+  } catch (err) {
+    const message = String(err);
+    if (/permission|access|authorization|drive/i.test(message)) {
+      return { success: false, message: "Share the observations sheet with the portal Google account as Editor, and allow Drive if a photo was added." };
     }
     return { success: false, message: message };
   }
