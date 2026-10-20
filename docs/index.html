@@ -90,6 +90,120 @@
       background: var(--primary-color);
       color: #ffffff;
     }
+    .view-chat .chat-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .chat-pane {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+    }
+    .chat-people { padding: 10px; max-height: 70vh; overflow: auto; }
+    .chat-thread { display: none; flex-direction: column; min-height: 62vh; }
+    .view-chat.is-thread .chat-people { display: none; }
+    .view-chat.is-thread .chat-thread { display: flex; }
+    .chat-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .chat-person {
+      display: block;
+      width: 100%;
+      text-align: left;
+      border: 0;
+      background: transparent;
+      border-radius: 8px;
+      padding: 8px;
+    }
+    .chat-person.active { background: #f0fdfa; }
+    .chat-person.unread .chat-preview { color: #0f766e; font-weight: 700; }
+    .chat-badge {
+      margin-left: auto;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      border-radius: 999px;
+      background: #b91c1c;
+      color: #ffffff;
+      font-size: 0.7rem;
+      line-height: 18px;
+      text-align: center;
+    }
+    .side-link.active .chat-badge { background: #ffffff; color: #b91c1c; }
+    .side-toggle { position: relative; }
+    .menu-chat-dot {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #b91c1c;
+    }
+    .chat-preview {
+      color: #64748b;
+      font-size: 0.78rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .chat-empty { padding: 16px; color: #64748b; font-size: 0.9rem; }
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+      min-height: 280px;
+      max-height: 52vh;
+    }
+    .chat-bubble {
+      max-width: 78%;
+      padding: 8px 10px;
+      border-radius: 12px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font-size: 0.92rem;
+    }
+    .chat-bubble.mine {
+      align-self: flex-end;
+      background: var(--primary-color);
+      color: #ffffff;
+      border-bottom-right-radius: 4px;
+    }
+    .chat-bubble.theirs {
+      align-self: flex-start;
+      background: #f1f5f9;
+      color: #1e293b;
+      border-bottom-left-radius: 4px;
+    }
+    .chat-time { font-size: 0.68rem; opacity: 0.75; margin-top: 2px; }
+    .chat-form {
+      display: flex;
+      gap: 8px;
+      padding: 10px;
+      border-top: 1px solid #e2e8f0;
+    }
+    .chat-form input { flex: 1; }
+    @media (min-width: 860px) {
+      .view-chat .chat-layout {
+        flex-direction: row;
+        align-items: stretch;
+        min-height: 68vh;
+      }
+      .chat-people { flex: 0 0 260px; max-height: 68vh; }
+      .view-chat .chat-thread { display: flex; flex: 1; min-height: 68vh; }
+      .view-chat.is-thread .chat-people { display: block; }
+      .chat-back { display: none; }
+      .chat-messages { max-height: none; }
+    }
     .home-stats, .home-links {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -643,6 +757,10 @@
       <button type="button" class="side-link" id="navEmployees" onclick="switchView('induction')">
         <i class="fa-solid fa-users"></i> Employee Data
       </button>
+      <button type="button" class="side-link" id="navChat" onclick="switchView('chat')">
+        <i class="fa-solid fa-comment"></i> Chat
+        <span id="chatBadge" class="chat-badge" style="display: none;">0</span>
+      </button>
     </aside>
 
     <div class="app-main">
@@ -650,6 +768,7 @@
       <div class="d-flex align-items-center gap-2 portal-header-text">
         <button type="button" class="btn btn-light border side-toggle" onclick="openSideNav()" title="Menu">
           <i class="fa-solid fa-bars"></i>
+          <span id="menuChatDot" class="menu-chat-dot" style="display: none;"></span>
         </button>
         <img class="brand-logo" src="alkharafi-logo.png" alt="Al Kharafi">
         <div>
@@ -1039,6 +1158,41 @@
       </div>
     </div>
 
+    <div id="viewChat" class="view-chat" style="display: none;">
+      <div id="chatGate" class="card card-custom p-4 text-center" style="display: none;">
+        <div class="fw-bold">Sign in again to use chat</div>
+        <div class="text-muted small">Sign out, then sign in. Messages stay between you and the person you write to. Text only.</div>
+      </div>
+      <div id="chatDesk">
+        <div class="chat-layout">
+          <div class="chat-pane chat-people">
+            <div class="fw-bold px-1 pb-1">Team</div>
+            <div class="text-muted small px-1 pb-2">Private. The rest of the team cannot open your messages.</div>
+            <button type="button" class="btn btn-sm btn-light border w-100 mb-2" id="chatNotifyBtn" style="display: none;" onclick="askChatNotification(true)">Turn on message alerts</button>
+            <div id="chatPeople"></div>
+          </div>
+          <div class="chat-pane chat-thread">
+            <div class="chat-head">
+              <button type="button" class="btn btn-sm btn-light border chat-back" onclick="closeChatThread()" aria-label="Back to team">
+                <i class="fa-solid fa-arrow-left"></i>
+              </button>
+              <div>
+                <div class="fw-bold" id="chatWithName">Chat</div>
+                <div class="small text-muted">Text only. Only the two of you.</div>
+              </div>
+            </div>
+            <div id="chatEmpty" class="chat-empty">Choose a person from the team.</div>
+            <div id="chatMessages" class="chat-messages" style="display: none;"></div>
+            <form id="chatForm" class="chat-form" style="display: none;" onsubmit="event.preventDefault(); sendChat();">
+              <input id="chatInput" type="text" maxlength="500" autocomplete="off" placeholder="Write a message">
+              <button type="submit" class="btn btn-portal-primary" id="chatSend">Send</button>
+            </form>
+            <div id="chatError" class="small text-danger px-2 pb-2" style="display: none;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- VIEW C: EMPLOYEE DATA -->
     <div id="viewInduction" style="display: none;">
       <div class="d-flex gap-2 mb-3 align-items-stretch">
@@ -1345,6 +1499,7 @@
     }
 
     function handleLogout() {
+      stopChatWatch();
       localStorage.removeItem("hse_portal_session");
       activeUser = null;
       document.getElementById('loginForm').reset();
@@ -1357,6 +1512,7 @@
       document.getElementById('headerUserName').innerText = activeUser.name;
       document.getElementById('headerUserRole').innerText = activeUser.role + " | " + activeUser.assignedZones.join(", ");
       if (!openLinkedEmployee()) switchView('home');
+      startChatWatch();
     }
 
     function openLinkedEmployee() {
@@ -1384,12 +1540,15 @@
       document.getElementById('viewPending').style.display = viewName === 'pending' ? 'block' : 'none';
       document.getElementById('viewNew').style.display = viewName === 'new' ? 'block' : 'none';
       document.getElementById('viewInduction').style.display = viewName === 'induction' ? 'block' : 'none';
+      document.getElementById('viewChat').style.display = viewName === 'chat' ? 'block' : 'none';
       document.getElementById('navHome').classList.toggle('active', viewName === 'home');
       document.getElementById('navInspections').classList.toggle('active', viewName === 'pending' || viewName === 'new');
       document.getElementById('navEmployees').classList.toggle('active', viewName === 'induction');
-      const titles = { home: "Home", pending: "Inspections", induction: "Employee Data", new: "New Inspection" };
+      document.getElementById('navChat').classList.toggle('active', viewName === 'chat');
+      const titles = { home: "Home", pending: "Inspections", induction: "Employee Data", new: "New Inspection", chat: "Chat" };
       document.getElementById('pageTitle').innerText = titles[viewName] || "Home";
       closeSideNav();
+      if (viewName === 'chat') startChat();
       if ((viewName === 'home' || viewName === 'pending') && !generatorRecords.length && !equipmentRecords.length && !scaffoldRecords.length) {
         fetchRegisters();
       } else if (viewName === 'home') {
@@ -1892,7 +2051,7 @@
       const btn = document.getElementById('btnSaveInduction');
       btn.disabled = true;
       btn.innerText = "Saving...";
-      callApi(editing ? "inductionUpdate" : "induction", { payload: JSON.stringify(payload), user: JSON.stringify(activeUser) })
+      callApi(editing ? "inductionUpdate" : "induction", { payload: JSON.stringify(payload), user: portalUser() })
         .then(res => {
           btn.disabled = false;
           if (res && res.success) {
@@ -2115,7 +2274,7 @@
       const btn = document.getElementById('btnSaveGeneratorUpdate');
       btn.disabled = true;
       btn.innerText = "Saving...";
-      callApi("generatorUpdate", { payload: JSON.stringify(payload), user: JSON.stringify(activeUser) })
+      callApi("generatorUpdate", { payload: JSON.stringify(payload), user: portalUser() })
         .then(res => {
           btn.disabled = false;
           btn.innerText = "Save status";
@@ -2195,7 +2354,7 @@
       const btn = document.getElementById('btnSaveEquipmentUpdate');
       btn.disabled = true;
       btn.innerText = "Saving...";
-      callApi("equipmentUpdate", { payload: JSON.stringify(payload), user: JSON.stringify(activeUser) })
+      callApi("equipmentUpdate", { payload: JSON.stringify(payload), user: portalUser() })
         .then(res => {
           btn.disabled = false;
           btn.innerText = "Save update";
@@ -2237,7 +2396,7 @@
           sheetRow: original.sheetRow,
           originalPlate: original.plate || ""
         }),
-        user: JSON.stringify(activeUser)
+        user: portalUser()
       }).then(res => {
         btn.disabled = false;
         btn.innerText = "Remove";
@@ -2487,7 +2646,7 @@
 
       callApi("closeout", {
         payload: JSON.stringify(payload),
-        user: JSON.stringify(activeUser)
+        user: portalUser()
       })
         .then(res => {
           btn.disabled = false;
@@ -2570,7 +2729,7 @@
 
       callApi("inspection", {
         payload: JSON.stringify(payload),
-        user: JSON.stringify(activeUser)
+        user: portalUser()
       })
         .then(res => {
           btn.disabled = false;
@@ -2603,7 +2762,7 @@
 
       callApi("equipment", {
         payload: JSON.stringify(payload),
-        user: JSON.stringify(activeUser)
+        user: portalUser()
       })
         .then(res => {
           btn.disabled = false;
@@ -2621,6 +2780,330 @@
           btn.disabled = false;
           btn.innerHTML = '<i class="fa-solid fa-paper-plane me-2"></i>Save Equipment Inspection';
           alert("Submission failed: " + err.toString());
+        });
+    }
+
+    let chatPeer = "";
+    let chatPeerName = "";
+    let chatWatchTimer = null;
+    let chatPeopleBusy = false;
+    let chatThreadBusy = false;
+    let chatPeopleCache = [];
+
+    function portalUser() {
+      return JSON.stringify({
+        id: activeUser.id,
+        name: activeUser.name,
+        username: activeUser.username,
+        assignedZones: activeUser.assignedZones,
+        role: activeUser.role
+      });
+    }
+
+    function chatNorm(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function showChatError(message) {
+      const box = document.getElementById("chatError");
+      if (!message) {
+        box.style.display = "none";
+        box.innerText = "";
+        return;
+      }
+      if (document.getElementById("viewChat").style.display === "none") return;
+      box.innerText = message;
+      box.style.display = "block";
+    }
+
+    function chatSeenKey() {
+      return "hse_chat_seen_" + chatNorm(activeUser && activeUser.username);
+    }
+
+    function chatAlertKey() {
+      return "hse_chat_alerted_" + chatNorm(activeUser && activeUser.username);
+    }
+
+    function readChatMap(storage, key) {
+      try {
+        return JSON.parse(storage.getItem(key) || "{}");
+      } catch (err) {
+        return {};
+      }
+    }
+
+    function incomingChat(person) {
+      if (!person || !person.lastAt || !person.lastFrom || !activeUser) return false;
+      if (chatNorm(person.lastFrom) === chatNorm(activeUser.username)) return false;
+      const seen = readChatMap(localStorage, chatSeenKey())[chatNorm(person.username)] || "";
+      return person.lastAt > seen;
+    }
+
+    function markChatSeen(username, at) {
+      if (!activeUser || !username) return;
+      const map = readChatMap(localStorage, chatSeenKey());
+      map[chatNorm(username)] = at || new Date().toISOString();
+      localStorage.setItem(chatSeenKey(), JSON.stringify(map));
+      const alerts = readChatMap(sessionStorage, chatAlertKey());
+      alerts[chatNorm(username)] = map[chatNorm(username)];
+      sessionStorage.setItem(chatAlertKey(), JSON.stringify(alerts));
+      updateChatBadge(chatPeopleCache);
+    }
+
+    function updateChatBadge(people) {
+      const count = (people || []).filter(incomingChat).length;
+      const badge = document.getElementById("chatBadge");
+      const dot = document.getElementById("menuChatDot");
+      badge.style.display = count ? "inline-block" : "none";
+      badge.textContent = count > 9 ? "9+" : String(count);
+      dot.style.display = count ? "block" : "none";
+      const base = "HSE Inspection & Compliance Portal";
+      document.title = count ? "(" + count + ") " + base : base;
+    }
+
+    function watchingChat(username) {
+      if (document.visibilityState !== "visible") return false;
+      if (document.getElementById("viewChat").style.display === "none") return false;
+      if (chatNorm(chatPeer) !== chatNorm(username)) return false;
+      const thread = document.querySelector("#viewChat .chat-thread");
+      return thread && getComputedStyle(thread).display !== "none";
+    }
+
+    function syncChatNotifyButton() {
+      const button = document.getElementById("chatNotifyBtn");
+      if (!button) return;
+      if (!("Notification" in window) || Notification.permission === "granted") {
+        button.style.display = "none";
+        return;
+      }
+      button.style.display = "block";
+      button.disabled = Notification.permission === "denied";
+      button.innerText = Notification.permission === "denied"
+        ? "Alerts are off in the browser settings"
+        : "Turn on message alerts";
+    }
+
+    function askChatNotification(fromButton) {
+      syncChatNotifyButton();
+      if (!("Notification" in window)) return;
+      if (Notification.permission !== "default") return;
+      if (!fromButton && document.getElementById("viewChat").style.display === "none") return;
+      Notification.requestPermission().then(syncChatNotifyButton);
+    }
+
+    function showChatNotification(person) {
+      const title = person.name || "New message";
+      const body = person.lastText || "New message";
+      const tag = "hse-chat-" + chatNorm(person.username);
+      const data = { username: person.username };
+      const fallback = function () {
+        try {
+          const note = new Notification(title, { body: body, tag: tag });
+          note.onclick = function () {
+            window.focus();
+            switchView("chat");
+            openChatPeer(person);
+            note.close();
+          };
+        } catch (err) {}
+      };
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.ready.then(function (reg) {
+          return reg.showNotification(title, { body: body, tag: tag, renotify: true, data: data, icon: "favicon-32.png" });
+        }).catch(fallback);
+        return;
+      }
+      fallback();
+    }
+
+    function noteIncoming(people) {
+      const alerts = readChatMap(sessionStorage, chatAlertKey());
+      let changed = false;
+      people.forEach(function (person) {
+        if (!incomingChat(person)) return;
+        const key = chatNorm(person.username);
+        if (watchingChat(person.username)) {
+          markChatSeen(person.username, person.lastAt);
+          alerts[key] = person.lastAt;
+          changed = true;
+          return;
+        }
+        if (alerts[key] === person.lastAt) return;
+        if (!("Notification" in window) || Notification.permission !== "granted") return;
+        alerts[key] = person.lastAt;
+        changed = true;
+        showChatNotification(person);
+      });
+      if (changed) sessionStorage.setItem(chatAlertKey(), JSON.stringify(alerts));
+      updateChatBadge(chatPeopleCache);
+    }
+
+    function startChat() {
+      const ready = activeUser && activeUser.token;
+      document.getElementById("chatGate").style.display = ready ? "none" : "block";
+      document.getElementById("chatDesk").style.display = ready ? "block" : "none";
+      syncChatNotifyButton();
+      if (ready) askChatNotification(true);
+      if (!ready) return;
+      startChatWatch();
+      loadChatPeople();
+      if (chatPeer) loadChatThread();
+    }
+
+    function startChatWatch() {
+      if (!activeUser || !activeUser.token || chatWatchTimer) return;
+      loadChatPeople();
+      chatWatchTimer = setInterval(function () {
+        loadChatPeople();
+        if (document.getElementById("viewChat").style.display !== "none" && chatPeer) loadChatThread();
+      }, 8000);
+    }
+
+    function stopChatWatch() {
+      if (chatWatchTimer) clearInterval(chatWatchTimer);
+      chatWatchTimer = null;
+      chatPeopleCache = [];
+      updateChatBadge([]);
+    }
+
+    function loadChatPeople() {
+      if (!activeUser || !activeUser.token || chatPeopleBusy) return;
+      chatPeopleBusy = true;
+      callApiPost("chatPeople", { token: activeUser.token })
+        .then(function (res) {
+          chatPeopleBusy = false;
+          if (!res.success) {
+            if (res.message && res.message.indexOf("Sign in again") !== -1) showChatGate();
+            else showChatError(res.message || "Could not load the team.");
+            return;
+          }
+          chatPeopleCache = res.people || [];
+          renderChatPeople(chatPeopleCache);
+          noteIncoming(chatPeopleCache);
+        })
+        .catch(function () {
+          chatPeopleBusy = false;
+          showChatError("Could not load the team.");
+        });
+    }
+
+    function renderChatPeople(people) {
+      const box = document.getElementById("chatPeople");
+      box.innerHTML = "";
+      if (!people.length) {
+        box.innerHTML = '<div class="text-muted small px-1">No other team members yet.</div>';
+        return;
+      }
+      people.forEach(function (person) {
+        const button = document.createElement("button");
+        button.type = "button";
+        const unread = incomingChat(person);
+        button.className = "chat-person" + (chatNorm(person.username) === chatNorm(chatPeer) ? " active" : "") + (unread ? " unread" : "");
+        button.onclick = function () { openChatPeer(person); };
+        const preview = person.lastText
+          ? '<div class="chat-preview">' + escapeHtml(person.lastText) + "</div>"
+          : '<div class="chat-preview">No messages yet</div>';
+        button.innerHTML = '<div class="fw-semibold">' + escapeHtml(person.name) + '</div><div class="small text-muted">' + escapeHtml(person.role || person.username) + "</div>" + preview;
+        box.appendChild(button);
+      });
+    }
+
+    function openChatPeer(person) {
+      chatPeer = person.username;
+      chatPeerName = person.name || person.username;
+      document.getElementById("viewChat").classList.add("is-thread");
+      document.getElementById("chatWithName").innerText = chatPeerName;
+      document.getElementById("chatEmpty").style.display = "none";
+      document.getElementById("chatMessages").style.display = "flex";
+      document.getElementById("chatForm").style.display = "flex";
+      document.getElementById("chatMessages").dataset.ready = "";
+      showChatError("");
+      loadChatPeople();
+      loadChatThread();
+      markChatSeen(person.username, person.lastAt || new Date().toISOString());
+      document.getElementById("chatInput").focus();
+    }
+
+    function closeChatThread() {
+      document.getElementById("viewChat").classList.remove("is-thread");
+    }
+
+    function showChatGate() {
+      stopChatWatch();
+      document.getElementById("chatGate").style.display = "block";
+      document.getElementById("chatDesk").style.display = "none";
+    }
+
+    function loadChatThread() {
+      if (!activeUser || !activeUser.token || !chatPeer || chatThreadBusy) return;
+      chatThreadBusy = true;
+      callApiPost("chatThread", { token: activeUser.token, with: chatPeer })
+        .then(function (res) {
+          chatThreadBusy = false;
+          if (!res.success) {
+            if (res.message && res.message.indexOf("Sign in again") !== -1) showChatGate();
+            else showChatError(res.message || "Could not load messages.");
+            return;
+          }
+          renderChatMessages(res.messages || []);
+        })
+        .catch(function () {
+          chatThreadBusy = false;
+          showChatError("Could not load messages.");
+        });
+    }
+
+    function renderChatMessages(messages) {
+      const box = document.getElementById("chatMessages");
+      const stick = !box.dataset.ready || box.scrollHeight - box.scrollTop - box.clientHeight < 90;
+      if (!messages.length) {
+        box.innerHTML = '<div class="text-muted small text-center">No messages yet. Only you and this person can see this chat.</div>';
+      } else {
+        box.innerHTML = messages.map(function (msg) {
+          const side = msg.mine ? "mine" : "theirs";
+          return '<div class="chat-bubble ' + side + '"><div>' + escapeHtml(msg.text) + '</div><div class="chat-time">' + escapeHtml(formatChatTime(msg.at)) + "</div></div>";
+        }).join("");
+      }
+      if (stick) box.scrollTop = box.scrollHeight;
+      box.dataset.ready = "1";
+      if (chatPeer && messages.length && watchingChat(chatPeer)) {
+        markChatSeen(chatPeer, messages[messages.length - 1].at);
+      }
+    }
+
+    function formatChatTime(value) {
+      const date = new Date(value);
+      if (isNaN(date.getTime())) return "";
+      return date.toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+    }
+
+    function sendChat() {
+      const input = document.getElementById("chatInput");
+      const text = input.value.trim();
+      if (!text || !chatPeer || !activeUser || !activeUser.token) return;
+      if (text.length > 500) {
+        showChatError("Message is too long. Keep it under 500 characters.");
+        return;
+      }
+      const button = document.getElementById("chatSend");
+      button.disabled = true;
+      showChatError("");
+      callApiPost("chatSend", { token: activeUser.token, with: chatPeer, text: text })
+        .then(function (res) {
+          button.disabled = false;
+          if (!res.success) {
+            if (res.message && res.message.indexOf("Sign in again") !== -1) showChatGate();
+            else showChatError(res.message || "Message was not sent.");
+            return;
+          }
+          input.value = "";
+          document.getElementById("chatMessages").dataset.ready = "";
+          loadChatThread();
+          loadChatPeople();
+        })
+        .catch(function () {
+          button.disabled = false;
+          showChatError("Message was not sent.");
         });
     }
 
@@ -2651,6 +3134,15 @@
     }
 
     if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", function (event) {
+        const data = event.data || {};
+        if (data.type !== "open-chat" || !activeUser) return;
+        const person = chatPeopleCache.filter(function (row) {
+          return chatNorm(row.username) === chatNorm(data.username);
+        })[0] || { username: data.username, name: data.username };
+        switchView("chat");
+        if (person.username) openChatPeer(person);
+      });
       window.addEventListener("load", function () {
         navigator.serviceWorker.register("sw.js").catch(function () {});
       });

@@ -71,6 +71,12 @@ function apiResponse_(params) {
       result = uploadInductionPhoto(payload);
     } else if (params.action === "inductionPhotoFolder") {
       result = inductionPhotoFolderLink_();
+    } else if (params.action === "chatPeople") {
+      result = listChatPeople(params.token || "");
+    } else if (params.action === "chatThread") {
+      result = listChatThread(params.token || "", params.with || "");
+    } else if (params.action === "chatSend") {
+      result = sendChatMessage(params.token || "", params.with || "", params.text || "");
     } else {
       result = { success: false, message: "Unknown action." };
     }
@@ -99,16 +105,19 @@ function authenticateUser(username, pin) {
     
     if (uName === username.trim().toLowerCase() && uPin === pin.trim()) {
       const assignedZonesStr = String(data[i][4]);
-      return {
-        success: true,
-        user: {
-          id: data[i][0],
-          name: data[i][1],
-          username: data[i][2],
-          assignedZones: assignedZonesStr.split(',').map(s => s.trim()),
-          role: data[i][5]
-        }
+      const user = {
+        id: data[i][0],
+        name: data[i][1],
+        username: data[i][2],
+        assignedZones: assignedZonesStr.split(',').map(s => s.trim()),
+        role: data[i][5]
       };
+      try {
+        user.token = issueChatSession_(data[i][2], data[i][1], data[i][5]);
+      } catch (err) {
+        user.token = "";
+      }
+      return { success: true, user: user };
     }
   }
   return { success: false, message: "Invalid username or PIN." };
