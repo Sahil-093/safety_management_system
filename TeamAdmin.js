@@ -1,6 +1,6 @@
 /**
  * Admin-only edits for HSE_TEAM logins.
- * Columns: ID, Name, Username, PIN, Zones, Role.
+ * Columns: ID, Name, Username, PIN, Zones, Role, Email.
  */
 
 function teamText_(value) {
@@ -77,7 +77,8 @@ function listTeamMembers(token) {
       username: username,
       pin: teamText_(book.values[i][3]),
       zones: teamText_(book.values[i][4]),
-      role: teamText_(book.values[i][5])
+      role: teamText_(book.values[i][5]),
+      email: teamText_(book.values[i][6])
     });
   }
   people.sort(function (a, b) {
@@ -99,11 +100,15 @@ function saveTeamMember(token, form) {
   const pin = teamText_(incoming.pin);
   const zones = teamText_(incoming.zones);
   const role = teamText_(incoming.role);
+  const email = teamText_(incoming.email);
   const original = teamText_(incoming.originalUsername);
   if (!name || !username || !pin || !role) {
     return { success: false, message: "Name, username, login code, and role are required." };
   }
-  if (name.length > 80 || username.length > 40 || pin.length > 20 || role.length > 40 || zones.length > 120) {
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { success: false, message: "Enter a valid email, or leave it blank." };
+  }
+  if (name.length > 80 || username.length > 40 || pin.length > 20 || role.length > 40 || zones.length > 120 || email.length > 120) {
     return { success: false, message: "One of the fields is too long." };
   }
   const originalIndex = original ? teamFindRow_(book.values, original) : -1;
@@ -124,8 +129,11 @@ function saveTeamMember(token, form) {
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
-    book.sheet.getRange(rowNumber, 1, 1, 6).setNumberFormat("@");
-    book.sheet.getRange(rowNumber, 1, 1, 6).setValues([[id, name, username, pin, zones, role]]);
+    if (!teamText_(book.sheet.getRange(1, 7).getValue())) {
+      book.sheet.getRange(1, 7).setValue("Email").setFontWeight("bold");
+    }
+    book.sheet.getRange(rowNumber, 1, 1, 7).setNumberFormat("@");
+    book.sheet.getRange(rowNumber, 1, 1, 7).setValues([[id, name, username, pin, zones, role, email]]);
   } finally {
     lock.releaseLock();
   }

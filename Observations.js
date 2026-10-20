@@ -197,7 +197,6 @@ function listObservations(token) {
         villa: observationText_(observationCell_(row, col("villa/part"))),
         description: observationText_(observationCell_(row, col("observation description"))),
         responsible: observationText_(observationCell_(row, col("responsible person name"))),
-        email: observationText_(observationCell_(row, col("email address"))),
         submittedBy: observationText_(observationCell_(row, col("submitted by"))),
         photos: observationPhotos_(observationCell_(row, col("photos"))),
         closeout: observationText_(observationCell_(row, col("closeout response"))),
@@ -229,6 +228,21 @@ function observationFolder_(name) {
   const folders = DriveApp.getFoldersByName(name);
   if (folders.hasNext()) return folders.next();
   return DriveApp.createFolder(name);
+}
+
+function observationActorEmail_(actor) {
+  if (!actor || !actor.username) return "";
+  const sheet = teamSheet_();
+  if (!sheet) return "";
+  const data = sheet.getDataRange().getValues();
+  const header = observationText_(data[0][6]).toLowerCase();
+  if (header && header !== "email") return "";
+  const me = chatNorm_(actor.username);
+  for (let i = 1; i < data.length; i++) {
+    if (chatNorm_(data[i][2]) !== me) continue;
+    return observationText_(data[i][6]);
+  }
+  return "";
 }
 
 function observationCode_(contractor) {
@@ -281,6 +295,7 @@ function closeObservation(token, form) {
     const responseCol = observationEnsureColumn_(sheet, header, "Closeout Response");
     const byCol = observationEnsureColumn_(sheet, header, "Closed By");
     const photoCol = observationEnsureColumn_(sheet, header, "Closeout Photos");
+    const emailCol = observationEnsureColumn_(sheet, header, "Closeout Email");
     const stamp = Utilities.formatDate(new Date(), "Asia/Riyadh", "yyyy-MM-dd HH:mm");
     const lock = LockService.getScriptLock();
     lock.waitLock(10000);
@@ -288,6 +303,7 @@ function closeObservation(token, form) {
       sheet.getRange(row, statusCol + 1).setValue("Closed");
       sheet.getRange(row, responseCol + 1).setValue(response);
       sheet.getRange(row, byCol + 1).setValue(actor.name + " (" + stamp + ")");
+      sheet.getRange(row, emailCol + 1).setValue(observationActorEmail_(actor));
       if (photoUrls.length) sheet.getRange(row, photoCol + 1).setValue(photoUrls.join("\n"));
     } finally {
       lock.releaseLock();
@@ -313,16 +329,13 @@ function createObservation(token, form) {
   const villa = observationText_(incoming.villa);
   const description = observationText_(incoming.description);
   const responsible = observationText_(incoming.responsible);
-  const email = observationText_(incoming.email);
+  const email = observationActorEmail_(actor);
   if (!contractor) return { success: false, message: "Enter the contractor or subcontractor." };
   if (!zone) return { success: false, message: "Enter the zone." };
   if (!title) return { success: false, message: "Enter the observation title." };
   if (!description) return { success: false, message: "Enter the observation description." };
-  if (title.length > 200 || description.length > 2000 || contractor.length > 80 || zone.length > 40 || building.length > 80 || villa.length > 80 || responsible.length > 80 || email.length > 120) {
+  if (title.length > 200 || description.length > 2000 || contractor.length > 80 || zone.length > 40 || building.length > 80 || villa.length > 80 || responsible.length > 80) {
     return { success: false, message: "One of the fields is too long." };
-  }
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return { success: false, message: "Enter a valid email, or leave it blank." };
   }
   try {
     const sheet = observationSheet_();

@@ -1298,9 +1298,13 @@
             <label class="form-label small fw-semibold" for="teamZones">Zones</label>
             <input type="text" class="form-control form-control-sm" id="teamZones" maxlength="120" placeholder="ALL SITE">
           </div>
-          <div class="mb-3">
+          <div class="mb-2">
             <label class="form-label small fw-semibold" for="teamRole">Role</label>
             <input type="text" class="form-control form-control-sm" id="teamRole" maxlength="40" placeholder="HSE DC">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold" for="teamEmail">Email</label>
+            <input type="email" class="form-control form-control-sm" id="teamEmail" maxlength="120" autocomplete="off" placeholder="name@company.com">
           </div>
           <div class="d-flex gap-2">
             <button type="button" class="btn btn-portal-primary" id="teamSaveBtn" onclick="saveTeamMember()">Save</button>
@@ -1343,9 +1347,6 @@
           </label>
           <label>Responsible person
             <input id="obsIssueResponsible" class="form-control form-control-sm" maxlength="80" autocomplete="off">
-          </label>
-          <label>Email address
-            <input id="obsIssueEmail" class="form-control form-control-sm" type="email" maxlength="120" autocomplete="off">
           </label>
           <label class="obs-wide">Pictures
             <input id="obsIssuePhotos" class="form-control form-control-sm" type="file" accept="image/*" multiple onchange="previewObservationIssuePhotos(this)">
@@ -3095,7 +3096,7 @@
       const open = typeof force === "boolean" ? force : card.style.display === "none";
       card.style.display = open ? "block" : "none";
       if (!open) return;
-      ["obsIssueContractor", "obsIssueZone", "obsIssueBuilding", "obsIssueVilla", "obsIssueTitle", "obsIssueDescription", "obsIssueResponsible", "obsIssueEmail"].forEach(function (id) {
+      ["obsIssueContractor", "obsIssueZone", "obsIssueBuilding", "obsIssueVilla", "obsIssueTitle", "obsIssueDescription", "obsIssueResponsible"].forEach(function (id) {
         document.getElementById(id).value = "";
       });
       document.getElementById("obsIssuePhotos").value = "";
@@ -3138,12 +3139,10 @@
       const villa = document.getElementById("obsIssueVilla").value.trim();
       const description = document.getElementById("obsIssueDescription").value.trim();
       const responsible = document.getElementById("obsIssueResponsible").value.trim();
-      const email = document.getElementById("obsIssueEmail").value.trim();
       if (!contractor) return observationIssueError("Enter the contractor or subcontractor.");
       if (!zone) return observationIssueError("Enter the zone.");
       if (!title) return observationIssueError("Enter the observation title.");
       if (!description) return observationIssueError("Enter the observation description.");
-      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return observationIssueError("Enter a valid email, or leave it blank.");
       observationIssueError("");
       const files = Array.prototype.slice.call(document.getElementById("obsIssuePhotos").files || []).slice(0, 3);
       const button = document.getElementById("obsIssueSave");
@@ -3160,7 +3159,6 @@
               villa: villa,
               description: description,
               responsible: responsible,
-              email: email,
               images: images
             })
           });
@@ -3406,7 +3404,7 @@
         const card = document.createElement("div");
         card.className = "card card-custom p-3 mb-2";
         const self = chatNorm(person.username) === chatNorm(activeUser.username);
-        card.innerHTML = '<div class="d-flex justify-content-between gap-2"><div><div class="fw-bold">' + escapeHtml(person.name) + '</div><div class="small text-muted">' + escapeHtml(person.role) + (person.zones ? " | " + escapeHtml(person.zones) : "") + '</div></div></div><div class="small mt-2">Username: <strong>' + escapeHtml(person.username) + '</strong></div><div class="small">Login code: <strong>' + escapeHtml(person.pin) + '</strong></div><div class="d-flex gap-2 mt-2"><button type="button" class="btn btn-sm btn-light border team-edit">Edit</button>' + (self ? "" : '<button type="button" class="btn btn-sm btn-outline-danger team-remove">Remove</button>') + "</div>";
+        card.innerHTML = '<div class="d-flex justify-content-between gap-2"><div><div class="fw-bold">' + escapeHtml(person.name) + '</div><div class="small text-muted">' + escapeHtml(person.role) + (person.zones ? " | " + escapeHtml(person.zones) : "") + '</div></div></div><div class="small mt-2">Username: <strong>' + escapeHtml(person.username) + '</strong></div><div class="small">Login code: <strong>' + escapeHtml(person.pin) + '</strong></div><div class="small">Email: <strong>' + escapeHtml(person.email || "-") + '</strong></div><div class="d-flex gap-2 mt-2"><button type="button" class="btn btn-sm btn-light border team-edit">Edit</button>' + (self ? "" : '<button type="button" class="btn btn-sm btn-outline-danger team-remove">Remove</button>') + "</div>";
         card.querySelector(".team-edit").onclick = function () { startTeamEdit(person); };
         const removeButton = card.querySelector(".team-remove");
         if (removeButton) removeButton.onclick = function () { removeTeamMember(person); };
@@ -3425,6 +3423,7 @@
       document.getElementById("teamPin").value = row.pin || "";
       document.getElementById("teamZones").value = row.zones || "";
       document.getElementById("teamRole").value = row.role || "";
+      document.getElementById("teamEmail").value = row.email || "";
       showTeamFormError("");
       document.getElementById("teamName").focus();
     }
@@ -3446,8 +3445,15 @@
         username: document.getElementById("teamUsername").value,
         pin: document.getElementById("teamPin").value,
         zones: document.getElementById("teamZones").value,
-        role: document.getElementById("teamRole").value
+        role: document.getElementById("teamRole").value,
+        email: document.getElementById("teamEmail").value
       };
+      const teamEmail = payload.email.trim();
+      if (teamEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(teamEmail)) {
+        button.disabled = false;
+        showTeamFormError("Enter a valid email, or leave it blank.");
+        return;
+      }
       callApiPost("teamSave", { token: activeUser.token, payload: JSON.stringify(payload) })
         .then(function (res) {
           button.disabled = false;
