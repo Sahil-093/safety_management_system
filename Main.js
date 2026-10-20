@@ -92,6 +92,16 @@ function apiResponse_(params) {
       result = saveTeamMember(params.token || "", payload);
     } else if (params.action === "teamRemove") {
       result = removeTeamMember(params.token || "", params.username || "");
+    } else if (params.action === "profileGet") {
+      result = getProfile(params.token || "");
+    } else if (params.action === "profileSave") {
+      result = saveProfile(params.token || "", payload);
+    } else if (params.action === "credentialRequest") {
+      result = requestCredential(params.lookup || "");
+    } else if (params.action === "credentialPending") {
+      result = listCredentialRequests(params.token || "");
+    } else if (params.action === "credentialClear") {
+      result = clearCredentialRequest(params.token || "", params.username || "");
     } else if (params.action === "observationList") {
       result = listObservations(params.token || "", payload);
     } else if (params.action === "observationClose") {
@@ -132,8 +142,17 @@ function authenticateUser(username, pin) {
         name: data[i][1],
         username: data[i][2],
         assignedZones: assignedZonesStr.split(',').map(s => s.trim()),
-        role: data[i][5]
+        role: data[i][5],
+        email: String(data[i][6] || "").trim(),
+        photo: String(data[i][7] || "").trim()
       };
+      if (String(data[i][5] || "").trim().toLowerCase() === "hse dc") {
+        let pending = 0;
+        for (let r = 1; r < data.length; r++) {
+          if (String(data[r][8] || "").trim()) pending++;
+        }
+        user.credentialRequests = pending;
+      }
       try {
         user.token = issueChatSession_(data[i][2], data[i][1], data[i][5]);
       } catch (err) {

@@ -46,6 +46,47 @@ function chatNorm_(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+function refreshChatSession_(token, username, name, role) {
+  const key = String(token || "").trim();
+  if (!key) return;
+  const payload = JSON.stringify({
+    username: String(username || "").trim(),
+    name: String(name || username || "").trim(),
+    role: String(role || "").trim()
+  });
+  CacheService.getScriptCache().put(chatSessionKey_(key), payload, 21600);
+}
+
+function chatRenameUser_(fromUsername, toUsername, toName) {
+  const sheet = teamSpreadsheet_().getSheetByName(CHAT_SHEET_NAME);
+  if (!sheet) return;
+  const last = sheet.getLastRow();
+  if (last < 2) return;
+  const values = sheet.getRange(2, 2, last - 1, 3).getValues();
+  const oldKey = chatNorm_(fromUsername);
+  const nextUser = String(toUsername || "").trim();
+  const nextName = String(toName || "").trim();
+  if (!oldKey || !nextUser) return;
+  let changed = false;
+  for (let i = 0; i < values.length; i++) {
+    if (chatNorm_(values[i][0]) === oldKey) {
+      if (values[i][0] !== nextUser) {
+        values[i][0] = nextUser;
+        changed = true;
+      }
+      if (nextName && values[i][2] !== nextName) {
+        values[i][2] = nextName;
+        changed = true;
+      }
+    }
+    if (chatNorm_(values[i][1]) === oldKey && values[i][1] !== nextUser) {
+      values[i][1] = nextUser;
+      changed = true;
+    }
+  }
+  if (changed) sheet.getRange(2, 2, last - 1, 3).setValues(values);
+}
+
 function chatDeny_() {
   return { success: false, message: "Sign in again to use chat." };
 }

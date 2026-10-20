@@ -135,6 +135,31 @@
       text-align: center;
     }
     .side-link.active .chat-badge { background: #ffffff; color: #b91c1c; }
+    .profile-photo {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #e2e8f0;
+    }
+    .profile-fallback {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: #475569;
+    }
+    .header-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #e2e8f0;
+    }
+    .credential-card {
+      background: #fff7ed;
+      border: 1px solid #fdba74;
+    }
     .side-toggle { position: relative; }
     .menu-chat-dot {
       position: absolute;
@@ -797,6 +822,13 @@
           <i class="fa-solid fa-right-to-bracket me-2"></i>Sign In
         </button>
       </form>
+      <button type="button" class="btn btn-link btn-sm mt-2" onclick="toggleForgotLogin()">Forgot login code?</button>
+      <div id="forgotBox" class="text-start mt-1" style="display: none;">
+        <label class="form-label small mb-1" for="forgotLookup">Username or name</label>
+        <input type="text" class="form-control form-control-sm mb-2" id="forgotLookup" maxlength="80" autocomplete="off" placeholder="The name on your login">
+        <button type="button" class="btn btn-sm btn-portal-primary w-100" id="forgotSend" onclick="sendCredentialRequest()">Send request to HSE DC</button>
+        <div id="forgotMsg" class="small mt-2" style="display: none;"></div>
+      </div>
       <div id="loginError" class="alert alert-danger py-2 mt-3 small" style="display: none;"></div>
       <div id="loginEmployeeNote" class="text-muted small mt-3" style="display: none;">Sign in to open this employee record.</div>
     </div>
@@ -830,8 +862,12 @@
         <i class="fa-solid fa-comment"></i> Chat
         <span id="chatBadge" class="chat-badge" style="display: none;">0</span>
       </button>
+      <button type="button" class="side-link" id="navProfile" onclick="switchView('profile')">
+        <i class="fa-solid fa-user"></i> Profile
+      </button>
       <button type="button" class="side-link" id="navTeam" style="display: none;" onclick="switchView('team')">
         <i class="fa-solid fa-user-shield"></i> Team
+        <span id="teamBadge" class="chat-badge" style="display: none;">0</span>
       </button>
     </aside>
 
@@ -849,7 +885,10 @@
         </div>
       </div>
       <div class="d-flex align-items-center gap-2">
-        <div class="fw-bold text-dark small" id="headerUserName">Officer Name</div>
+        <button type="button" class="btn btn-link btn-sm text-dark text-decoration-none fw-bold p-0 d-flex align-items-center gap-2" onclick="switchView('profile')" title="Profile">
+          <img id="headerAvatar" class="header-avatar" alt="" style="display: none;">
+          <span id="headerUserName">Officer Name</span>
+        </button>
         <button class="btn btn-outline-danger btn-sm" onclick="handleLogout()" title="Logout">
           <i class="fa-solid fa-power-off"></i>
         </button>
@@ -889,6 +928,7 @@
           <span class="d-block">Employee Data</span>
         </button>
       </div>
+      <div id="homeCredentials"></div>
       <div class="d-flex justify-content-between align-items-center mb-2 px-1">
         <div class="fw-bold">Needs attention</div>
         <button type="button" class="btn btn-sm btn-portal-primary" onclick="switchView('new')">New inspection</button>
@@ -1265,6 +1305,54 @@
       </div>
     </div>
 
+    <div id="viewProfile" style="display: none;">
+      <div id="profileGate" class="card card-custom p-4 text-center" style="display: none;">
+        <div class="fw-bold">Sign in again to open your profile</div>
+        <div class="text-muted small">Sign out, then sign in.</div>
+      </div>
+      <div id="profileDesk" class="card card-custom p-3">
+        <div class="fw-bold mb-1">Profile</div>
+        <div class="text-muted small mb-3">Name, username, login code, email, and photo are saved on the HSE_TEAM tab. Observation emails are taken from this email. Role and zones stay with HSE DC.</div>
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <img id="profilePhotoPreview" class="profile-photo" alt="" style="display: none;">
+          <div id="profilePhotoFallback" class="profile-photo profile-fallback">?</div>
+          <div class="d-flex flex-column gap-2">
+            <label class="btn btn-sm btn-light border mb-0">
+              Upload photo
+              <input id="profilePhoto" type="file" accept="image/*" hidden onchange="previewProfilePhoto(this)">
+            </label>
+            <button type="button" class="btn btn-sm btn-light border" onclick="clearProfilePhoto()">Remove photo</button>
+          </div>
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold" for="profileName">Name</label>
+          <input type="text" class="form-control form-control-sm" id="profileName" maxlength="80" autocomplete="name">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold" for="profileUsername">Username</label>
+          <input type="text" class="form-control form-control-sm" id="profileUsername" maxlength="40" autocomplete="off">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold" for="profilePin">Login code</label>
+          <input type="text" class="form-control form-control-sm" id="profilePin" maxlength="20" autocomplete="off">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold" for="profileEmail">Email</label>
+          <input type="email" class="form-control form-control-sm" id="profileEmail" maxlength="120" autocomplete="email" placeholder="name@company.com">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small fw-semibold" for="profileRole">Role</label>
+          <input type="text" class="form-control form-control-sm" id="profileRole" disabled>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold" for="profileZones">Zones</label>
+          <input type="text" class="form-control form-control-sm" id="profileZones" disabled>
+        </div>
+        <button type="button" class="btn btn-portal-primary" id="profileSaveBtn" onclick="saveProfile()">Save profile</button>
+        <div id="profileFormError" class="small mt-2" style="display: none;"></div>
+      </div>
+    </div>
+
     <div id="viewTeam" style="display: none;">
       <div id="teamGate" class="card card-custom p-4 text-center" style="display: none;">
         <div class="fw-bold">Sign in again to manage team logins</div>
@@ -1278,6 +1366,7 @@
           </div>
           <button type="button" class="btn btn-sm btn-portal-primary" onclick="startTeamEdit()">Add</button>
         </div>
+        <div id="credentialBox"></div>
         <div id="teamFormCard" class="card card-custom p-3 mb-3" style="display: none;">
           <div class="fw-bold mb-2" id="teamFormTitle">Edit login</div>
           <input type="hidden" id="teamOriginal">
@@ -1666,6 +1755,11 @@
     let observationRecords = [];
     let observationsLoaded = false;
     let observationCloseTarget = null;
+    let profilePhotoData = "";
+    let profilePhotoDirty = false;
+    let profilePhotoRemoved = false;
+    let credentialTimer = null;
+    let credentialPeople = [];
     let searchQueries = { ALL: "", Generator: "", Equipment: "", Scaffolding: "" };
 
     document.addEventListener("DOMContentLoaded", () => {
@@ -1736,22 +1830,77 @@
         });
     }
 
+    function toggleForgotLogin() {
+      const box = document.getElementById("forgotBox");
+      box.style.display = box.style.display === "none" ? "block" : "none";
+    }
+
+    function sendCredentialRequest() {
+      const lookup = document.getElementById("forgotLookup").value.trim();
+      const button = document.getElementById("forgotSend");
+      const msg = document.getElementById("forgotMsg");
+      if (!lookup) {
+        msg.style.display = "block";
+        msg.className = "small mt-2 text-danger";
+        msg.textContent = "Enter your username or name.";
+        return;
+      }
+      button.disabled = true;
+      msg.style.display = "none";
+      callApiPost("credentialRequest", { lookup: lookup })
+        .then(function (res) {
+          button.disabled = false;
+          msg.style.display = "block";
+          msg.className = "small mt-2 " + (res.success ? "text-success" : "text-danger");
+          msg.textContent = res.message || (res.success ? "Request sent to HSE DC." : "Could not send the request.");
+        })
+        .catch(function () {
+          button.disabled = false;
+          msg.style.display = "block";
+          msg.className = "small mt-2 text-danger";
+          msg.textContent = "Could not send the request.";
+        });
+    }
+
     function handleLogout() {
       stopChatWatch();
+      stopCredentialWatch();
       localStorage.removeItem("hse_portal_session");
       activeUser = null;
       document.getElementById('loginForm').reset();
       showLogin();
     }
 
+    function paintHeaderUser() {
+      if (!activeUser) return;
+      document.getElementById('headerUserName').innerText = activeUser.name || "";
+      const zones = Array.isArray(activeUser.assignedZones) ? activeUser.assignedZones.join(", ") : "";
+      document.getElementById('headerUserRole').innerText = (activeUser.role || "") + (zones ? " | " + zones : "");
+      const avatar = document.getElementById("headerAvatar");
+      if (activeUser.photo) {
+        avatar.src = activeUser.photo;
+        avatar.style.display = "block";
+      } else {
+        avatar.removeAttribute("src");
+        avatar.style.display = "none";
+      }
+      const badge = document.getElementById("teamBadge");
+      const count = Number(activeUser.credentialRequests || 0);
+      if (badge) {
+        badge.style.display = isTeamAdmin() && count ? "inline-block" : "none";
+        badge.textContent = count > 9 ? "9+" : String(count);
+      }
+    }
+
     function displayApp() {
       document.getElementById('loginSection').style.display = "none";
       document.getElementById('appSection').classList.add('is-open');
-      document.getElementById('headerUserName').innerText = activeUser.name;
-      document.getElementById('headerUserRole').innerText = activeUser.role + " | " + activeUser.assignedZones.join(", ");
+      paintHeaderUser();
       document.getElementById('navTeam').style.display = isTeamAdmin() ? "flex" : "none";
       if (!openLinkedEmployee()) switchView('home');
       startChatWatch();
+      startCredentialWatch();
+      refreshOwnProfile();
     }
 
     function openLinkedEmployee() {
@@ -1782,18 +1931,21 @@
       document.getElementById('viewNew').style.display = viewName === 'new' ? 'block' : 'none';
       document.getElementById('viewInduction').style.display = viewName === 'induction' ? 'block' : 'none';
       document.getElementById('viewChat').style.display = viewName === 'chat' ? 'block' : 'none';
+      document.getElementById('viewProfile').style.display = viewName === 'profile' ? 'block' : 'none';
       document.getElementById('viewTeam').style.display = viewName === 'team' ? 'block' : 'none';
       document.getElementById('navHome').classList.toggle('active', viewName === 'home');
       document.getElementById('navInspections').classList.toggle('active', viewName === 'pending' || viewName === 'new');
       document.getElementById('navObservations').classList.toggle('active', viewName === 'observations');
       document.getElementById('navEmployees').classList.toggle('active', viewName === 'induction');
       document.getElementById('navChat').classList.toggle('active', viewName === 'chat');
+      document.getElementById('navProfile').classList.toggle('active', viewName === 'profile');
       document.getElementById('navTeam').classList.toggle('active', viewName === 'team');
-      const titles = { home: "Home", pending: "Inspections", observations: "Observations", induction: "Employee Data", new: "New Inspection", chat: "Chat", team: "Team" };
+      const titles = { home: "Home", pending: "Inspections", observations: "Observations", induction: "Employee Data", new: "New Inspection", chat: "Chat", profile: "Profile", team: "Team" };
       document.getElementById('pageTitle').innerText = titles[viewName] || "Home";
       closeSideNav();
       if (viewName === 'chat') startChat();
       if (viewName === 'observations') showObservations();
+      if (viewName === 'profile') loadProfile();
       if (viewName === 'team') loadTeamMembers();
       if ((viewName === 'home' || viewName === 'pending') && !generatorRecords.length && !equipmentRecords.length && !scaffoldRecords.length) {
         fetchRegisters();
@@ -3339,12 +3491,12 @@
       });
     }
 
-    function observationFileToJpeg_(file) {
+    function observationFileToJpeg_(file, maxSize) {
       return new Promise(function (resolve, reject) {
         const image = new Image();
         const url = URL.createObjectURL(file);
         image.onload = function () {
-          const max = 960;
+          const max = maxSize || 960;
           const scale = Math.min(1, max / Math.max(image.width, image.height));
           const canvas = document.createElement("canvas");
           canvas.width = Math.max(1, Math.round(image.width * scale));
@@ -3412,6 +3564,233 @@
         });
     }
 
+    function showProfileStatus(message, ok) {
+      const box = document.getElementById("profileFormError");
+      if (!message) {
+        box.style.display = "none";
+        box.textContent = "";
+        return;
+      }
+      box.className = "small mt-2 " + (ok ? "text-success" : "text-danger");
+      box.textContent = message;
+      box.style.display = "block";
+    }
+
+    function setProfilePhoto(url) {
+      const img = document.getElementById("profilePhotoPreview");
+      const fallback = document.getElementById("profilePhotoFallback");
+      if (url) {
+        img.src = url;
+        img.style.display = "block";
+        fallback.style.display = "none";
+        return;
+      }
+      img.removeAttribute("src");
+      img.style.display = "none";
+      fallback.style.display = "flex";
+      const name = (document.getElementById("profileName").value || (activeUser && activeUser.name) || "?").trim();
+      fallback.textContent = (name.slice(0, 1) || "?").toUpperCase();
+    }
+
+    function applyProfileToSession(profile) {
+      if (!profile || !activeUser) return;
+      activeUser.name = profile.name || activeUser.name;
+      activeUser.username = profile.username || activeUser.username;
+      if (profile.role) activeUser.role = profile.role;
+      if (profile.id) activeUser.id = profile.id;
+      activeUser.email = profile.email || "";
+      activeUser.photo = profile.photo || "";
+      if (profile.zones) {
+        activeUser.assignedZones = String(profile.zones).split(",").map(function (item) { return item.trim(); }).filter(Boolean);
+      }
+      document.getElementById("navTeam").style.display = isTeamAdmin() ? "flex" : "none";
+      localStorage.setItem("hse_portal_session", JSON.stringify(activeUser));
+      paintHeaderUser();
+    }
+
+    function fillProfileForm(profile) {
+      document.getElementById("profileName").value = profile.name || "";
+      document.getElementById("profileUsername").value = profile.username || "";
+      document.getElementById("profilePin").value = profile.pin || "";
+      document.getElementById("profileEmail").value = profile.email || "";
+      document.getElementById("profileRole").value = profile.role || "";
+      document.getElementById("profileZones").value = profile.zones || "";
+      profilePhotoData = "";
+      profilePhotoDirty = false;
+      profilePhotoRemoved = false;
+      document.getElementById("profilePhoto").value = "";
+      setProfilePhoto(profile.photo || "");
+    }
+
+    function loadProfile() {
+      if (!activeUser || !activeUser.token) {
+        document.getElementById("profileGate").style.display = "block";
+        document.getElementById("profileDesk").style.display = "none";
+        return;
+      }
+      document.getElementById("profileGate").style.display = "none";
+      document.getElementById("profileDesk").style.display = "block";
+      showProfileStatus("");
+      callApiPost("profileGet", { token: activeUser.token })
+        .then(function (res) {
+          if (!res.success || !res.profile) {
+            showProfileStatus(res.message || "Could not load your profile.");
+            return;
+          }
+          fillProfileForm(res.profile);
+          applyProfileToSession(res.profile);
+        })
+        .catch(function () {
+          showProfileStatus("Could not load your profile.");
+        });
+    }
+
+    function refreshOwnProfile() {
+      if (!activeUser || !activeUser.token) return;
+      if (document.getElementById("viewProfile").style.display !== "none") return;
+      callApiPost("profileGet", { token: activeUser.token })
+        .then(function (res) {
+          if (!res.success || !res.profile) return;
+          applyProfileToSession(res.profile);
+        })
+        .catch(function () {});
+    }
+
+    function previewProfilePhoto(input) {
+      const file = (input.files || [])[0];
+      if (!file) return;
+      observationFileToJpeg_(file, 480)
+        .then(function (data) {
+          if (data.length > 120000) {
+            showProfileStatus("The picture is too large. Choose a smaller photo.");
+            return;
+          }
+          profilePhotoData = data;
+          profilePhotoDirty = true;
+          profilePhotoRemoved = false;
+          setProfilePhoto(data);
+          showProfileStatus("");
+        })
+        .catch(function () {
+          showProfileStatus("Could not read the picture.");
+        });
+    }
+
+    function clearProfilePhoto() {
+      profilePhotoData = "";
+      profilePhotoDirty = false;
+      profilePhotoRemoved = true;
+      document.getElementById("profilePhoto").value = "";
+      setProfilePhoto("");
+    }
+
+    function saveProfile() {
+      if (!activeUser || !activeUser.token) return;
+      const button = document.getElementById("profileSaveBtn");
+      const email = document.getElementById("profileEmail").value.trim();
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showProfileStatus("Enter a valid email. Observation emails are taken from your profile.");
+        return;
+      }
+      button.disabled = true;
+      showProfileStatus("");
+      const payload = {
+        name: document.getElementById("profileName").value,
+        username: document.getElementById("profileUsername").value,
+        pin: document.getElementById("profilePin").value,
+        email: email,
+        image: profilePhotoDirty ? profilePhotoData : "",
+        removePhoto: profilePhotoRemoved
+      };
+      callApiPost("profileSave", { token: activeUser.token, payload: JSON.stringify(payload) })
+        .then(function (res) {
+          button.disabled = false;
+          if (!res.success || !res.profile) {
+            showProfileStatus(res.message || "Could not save your profile.");
+            return;
+          }
+          fillProfileForm(res.profile);
+          applyProfileToSession(res.profile);
+          showProfileStatus("Saved on HSE_TEAM.", true);
+        })
+        .catch(function () {
+          button.disabled = false;
+          showProfileStatus("Could not save your profile.");
+        });
+    }
+
+    function paintCredentialNotice(people) {
+      credentialPeople = people || [];
+      if (activeUser) activeUser.credentialRequests = isTeamAdmin() ? credentialPeople.length : 0;
+      paintHeaderUser();
+      const home = document.getElementById("homeCredentials");
+      if (home) {
+        if (!credentialPeople.length || !isTeamAdmin()) {
+          home.innerHTML = "";
+        } else {
+          const label = credentialPeople.length === 1 ? "1 person forgot the login code" : credentialPeople.length + " people forgot the login code";
+          home.innerHTML = '<button type="button" class="card credential-card p-3 mb-3 w-100 text-start" onclick="switchView(\'team\')"><div class="fw-bold">' + label + '</div><div class="small">Open Team to see the username and login code, then mark it as given.</div></button>';
+        }
+      }
+      const box = document.getElementById("credentialBox");
+      if (!box) return;
+      box.innerHTML = "";
+      if (!credentialPeople.length || !isTeamAdmin()) return;
+      const title = document.createElement("div");
+      title.className = "fw-bold mb-2";
+      title.textContent = "Forgot login code";
+      box.appendChild(title);
+      credentialPeople.forEach(function (person) {
+        const card = document.createElement("div");
+        card.className = "card credential-card p-3 mb-2";
+        card.innerHTML = '<div class="fw-bold">' + escapeHtml(person.name || person.username) + '</div><div class="small mt-1">Username: <strong>' + escapeHtml(person.username) + '</strong></div><div class="small">Login code: <strong>' + escapeHtml(person.pin) + '</strong></div><div class="small text-muted">' + escapeHtml(person.requestedAt || "") + '</div><button type="button" class="btn btn-sm btn-light border mt-2 credential-clear">Mark as given</button>';
+        card.querySelector(".credential-clear").onclick = function () { clearCredentialRequest(person); };
+        box.appendChild(card);
+      });
+    }
+
+    function loadCredentialRequests() {
+      if (!activeUser || !activeUser.token || !isTeamAdmin()) return;
+      callApiPost("credentialPending", { token: activeUser.token })
+        .then(function (res) {
+          if (!res.success) return;
+          paintCredentialNotice(res.people || []);
+        })
+        .catch(function () {});
+    }
+
+    function startCredentialWatch() {
+      if (!isTeamAdmin() || credentialTimer) return;
+      loadCredentialRequests();
+      credentialTimer = setInterval(loadCredentialRequests, 60000);
+    }
+
+    function stopCredentialWatch() {
+      if (credentialTimer) clearInterval(credentialTimer);
+      credentialTimer = null;
+      credentialPeople = [];
+      const home = document.getElementById("homeCredentials");
+      const box = document.getElementById("credentialBox");
+      if (home) home.innerHTML = "";
+      if (box) box.innerHTML = "";
+    }
+
+    function clearCredentialRequest(person) {
+      if (!person || !activeUser || !activeUser.token) return;
+      callApiPost("credentialClear", { token: activeUser.token, username: person.username })
+        .then(function (res) {
+          if (!res.success) {
+            alert(res.message || "Could not clear this request.");
+            return;
+          }
+          loadCredentialRequests();
+          if (document.getElementById("viewTeam").style.display !== "none") loadTeamMembers();
+        })
+        .catch(function () {
+          alert("Could not clear this request.");
+        });
+    }
+
     function isTeamAdmin() {
       return String((activeUser && activeUser.role) || "").trim().toLowerCase() === "hse dc";
     }
@@ -3464,7 +3843,7 @@
         const card = document.createElement("div");
         card.className = "card card-custom p-3 mb-2";
         const self = chatNorm(person.username) === chatNorm(activeUser.username);
-        card.innerHTML = '<div class="d-flex justify-content-between gap-2"><div><div class="fw-bold">' + escapeHtml(person.name) + '</div><div class="small text-muted">' + escapeHtml(person.role) + (person.zones ? " | " + escapeHtml(person.zones) : "") + '</div></div></div><div class="small mt-2">Username: <strong>' + escapeHtml(person.username) + '</strong></div><div class="small">Login code: <strong>' + escapeHtml(person.pin) + '</strong></div><div class="small">Email: <strong>' + escapeHtml(person.email || "-") + '</strong></div><div class="d-flex gap-2 mt-2"><button type="button" class="btn btn-sm btn-light border team-edit">Edit</button>' + (self ? "" : '<button type="button" class="btn btn-sm btn-outline-danger team-remove">Remove</button>') + "</div>";
+        card.innerHTML = '<div class="d-flex justify-content-between gap-2 align-items-center"><div class="d-flex align-items-center gap-2">' + (person.photo ? '<img class="header-avatar" alt="" src="' + escapeHtml(person.photo) + '">' : '') + '<div><div class="fw-bold">' + escapeHtml(person.name) + '</div><div class="small text-muted">' + escapeHtml(person.role) + (person.zones ? " | " + escapeHtml(person.zones) : "") + '</div></div></div></div><div class="small mt-2">Username: <strong>' + escapeHtml(person.username) + '</strong></div><div class="small">Login code: <strong>' + escapeHtml(person.pin) + '</strong></div><div class="small">Email: <strong>' + escapeHtml(person.email || "-") + '</strong></div>' + (person.credentialRequest ? '<div class="small text-danger mt-1">Asked for login code: ' + escapeHtml(person.credentialRequest) + '</div>' : '') + '<div class="d-flex gap-2 mt-2"><button type="button" class="btn btn-sm btn-light border team-edit">Edit</button>' + (self ? "" : '<button type="button" class="btn btn-sm btn-outline-danger team-remove">Remove</button>') + "</div>";
         card.querySelector(".team-edit").onclick = function () { startTeamEdit(person); };
         const removeButton = card.querySelector(".team-remove");
         if (removeButton) removeButton.onclick = function () { removeTeamMember(person); };
