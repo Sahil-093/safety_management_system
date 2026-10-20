@@ -87,21 +87,81 @@ function observationPublish_(id) {
   if (!id) return "";
   const cache = CacheService.getScriptCache();
   const key = "obs-photo-" + id;
-  if (cache.get(key) === "1") return "https://lh3.googleusercontent.com/d/" + id + "=w800";
+  if (cache.get(key) === "1") return "https://drive.google.com/thumbnail?id=" + id + "&sz=w800";
   try {
     DriveApp.getFileById(id).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     cache.put(key, "1", 21600);
-    return "https://lh3.googleusercontent.com/d/" + id + "=w800";
+    return "https://drive.google.com/thumbnail?id=" + id + "&sz=w800";
   } catch (err) {
     try { cache.put(key, "0", 300); } catch (ignore) {}
     return "";
   }
 }
 
+function observationMime_(response) {
+  const headers = response.getHeaders() || {};
+  return String(headers["Content-Type"] || headers["content-type"] || "");
+}
+
+function observationFetchImage_(url, token) {
+  const response = UrlFetchApp.fetch(url, {
+    headers: token ? { Authorization: "Bearer " + token } : {},
+    muteHttpExceptions: true,
+    followRedirects: true
+  });
+  const mime = observationMime_(response);
+  if (response.getResponseCode() !== 200 || mime.indexOf("image/") !== 0) return null;
+  const bytes = response.getContent();
+  if (!bytes || !bytes.length || bytes.length > 180000) return null;
+  return {
+    type: mime.split(";")[0],
+    bytes: bytes
+  };
+}
+
+function observationInlineImage_(id) {
+  if (!id) return "";
+  const cache = CacheService.getScriptCache();
+  const key = "obs-inline-" + id;
+  const saved = cache.get(key);
+  if (saved) return saved;
+  let image = null;
+  try {
+    const token = ScriptApp.getOAuthToken();
+    const meta = UrlFetchApp.fetch(
+      "https://www.googleapis.com/drive/v3/files/" + encodeURIComponent(id) + "?fields=thumbnailLink",
+      { headers: { Authorization: "Bearer " + token }, muteHttpExceptions: true }
+    );
+    const info = JSON.parse(meta.getContentText() || "{}");
+    let link = String(info.thumbnailLink || "");
+    if (link) {
+      const large = /=s\d+/.test(link) ? link.replace(/=s\d+/, "=s800") : link;
+      image = observationFetchImage_(large, "") || observationFetchImage_(large, token) || observationFetchImage_(link, "");
+    }
+  } catch (ignore) {}
+  if (!image) {
+    try {
+      const thumb = DriveApp.getFileById(id).getThumbnail();
+      if (thumb) {
+        const bytes = thumb.getBytes();
+        if (bytes && bytes.length && bytes.length <= 180000) {
+          image = { type: thumb.getContentType() || "image/png", bytes: bytes };
+        }
+      }
+    } catch (ignore) {}
+  }
+  if (!image) return observationPublish_(id);
+  const data = "data:" + image.type + ";base64," + Utilities.base64Encode(image.bytes);
+  if (data.length < 99000) {
+    try { cache.put(key, data, 21600); } catch (ignore) {}
+  }
+  return data;
+}
+
 function observationPhotos_(cell) {
   return observationPhotoList_(cell).map(function (photo) {
     return {
-      imageUrl: observationPublish_(photo.id),
+      imageUrl: observationInlineImage_(photo.id),
       openUrl: photo.openUrl
     };
   });

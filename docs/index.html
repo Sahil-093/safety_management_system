@@ -227,7 +227,7 @@
     }
     .obs-photos:has(> :only-child),
     .obs-close-photos:has(> :only-child) {
-      grid-template-columns: minmax(0, 240px);
+      grid-template-columns: minmax(0, 420px);
     }
     .obs-photos a, .obs-close-photos a {
       display: block;
@@ -240,7 +240,8 @@
     .obs-photos img, .obs-close-photos img {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
+      background: #f8fafc;
       display: block;
     }
     .obs-open { color: #b91c1c; }
@@ -3059,9 +3060,6 @@
 
     function openObservationPhoto(event, link) {
       const img = link.querySelector("img");
-      const laptop = window.matchMedia("(min-width: 860px)").matches;
-      const href = link.getAttribute("href") || "";
-      if (laptop && /^https?:/i.test(href)) return;
       if (!img) return;
       event.preventDefault();
       document.getElementById("obsViewerImage").src = img.src;
