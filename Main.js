@@ -30,7 +30,7 @@ function doGet(e) {
     return apiResponse_(params);
   }
   return HtmlService.createHtmlOutputFromFile('Index')
-    .setTitle('HSE Inspection & Compliance Portal')
+    .setTitle('Safety Management System')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }

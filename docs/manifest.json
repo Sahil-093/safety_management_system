@@ -1,6 +1,6 @@
 {
-  "name": "HSE Inspection Portal",
-  "short_name": "HSE Portal",
+  "name": "Safety Management System",
+  "short_name": "Safety Management System",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

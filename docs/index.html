@@ -8,8 +8,8 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="HSE Portal">
-  <title>HSE Inspection & Compliance Portal</title>
+  <meta name="apple-mobile-web-app-title" content="Safety Management System">
+  <title>Safety Management System</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
   <link rel="icon" href="favicon-16.png" type="image/png" sizes="16x16">
@@ -73,6 +73,7 @@
       margin-bottom: 6px;
     }
     .side-brand i { color: var(--primary-color); font-size: 1.3rem; }
+    .side-title { font-size: 0.92rem; line-height: 1.25; }
     .side-link {
       display: flex;
       align-items: center;
@@ -806,7 +807,7 @@
       <div class="mb-3">
         <img class="login-logo" src="alkharafi-logo.png" alt="Al Kharafi">
       </div>
-      <h5 class="fw-bold mb-1">HSE Inspection Portal</h5>
+      <h5 class="fw-bold mb-1">Safety Management System</h5>
       <p class="text-muted small mb-4">Sign in to access your assigned inspections & tasks</p>
 
       <form id="loginForm" onsubmit="event.preventDefault(); handleLogin();">
@@ -841,7 +842,7 @@
       <div class="side-brand">
         <img class="brand-logo" src="alkharafi-logo.png" alt="Al Kharafi">
         <div class="flex-grow-1">
-          <div class="fw-bold">HSE Portal</div>
+          <div class="fw-bold side-title">Safety Management System</div>
           <div class="small text-muted">SBARC</div>
         </div>
         <button type="button" class="btn-close side-close" onclick="closeSideNav()" aria-label="Close"></button>
@@ -3992,7 +3993,7 @@
       badge.style.display = count ? "inline-block" : "none";
       badge.textContent = count > 9 ? "9+" : String(count);
       dot.style.display = count ? "block" : "none";
-      const base = "HSE Inspection & Compliance Portal";
+      const base = "Safety Management System";
       document.title = count ? "(" + count + ") " + base : base;
     }
 
