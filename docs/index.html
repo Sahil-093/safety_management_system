@@ -245,7 +245,17 @@
       display: block;
     }
     .obs-open { color: #b91c1c; }
-    .obs-closed { color: #0f766e; }
+    .obs-closed { color: #15803d; }
+    .card.obs-card.open {
+      background: #fff5f5;
+      border-color: #fecaca;
+      border-top: 4px solid #f87171;
+    }
+    .card.obs-card.closed {
+      background: #f0fdf4;
+      border-color: #86efac;
+      border-top: 4px solid #16a34a;
+    }
     .obs-viewer {
       position: fixed;
       inset: 0;
@@ -3233,7 +3243,7 @@
       rows.forEach(function (row) {
         const closed = obsStatusKey(row.status) === "closed";
         const card = document.createElement("article");
-        card.className = "card card-custom p-3 mb-3";
+        card.className = "card card-custom obs-card p-3 mb-3 " + (closed ? "closed" : "open");
         const photos = (row.photos || []).map(observationPhotoHtml).join("");
         const closePhotos = (row.closePhotos || []).map(observationPhotoHtml).join("");
         card.innerHTML = '<div class="d-flex justify-content-between gap-2"><div><div class="small text-muted">' + escapeHtml(row.ref) + " · " + escapeHtml(row.when || row.date) + '</div><div class="fw-bold mt-1">' + escapeHtml(row.title || "Observation") + '</div></div><div class="small fw-bold ' + (closed ? "obs-closed" : "obs-open") + '">' + (closed ? "Closed" : "Open") + "</div></div>"
