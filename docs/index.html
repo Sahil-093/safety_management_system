@@ -204,6 +204,61 @@
       .chat-back { display: none; }
       .chat-messages { max-height: none; }
     }
+    .obs-filters {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .obs-filters label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #64748b;
+    }
+    .obs-filters .obs-wide { grid-column: 1 / -1; }
+    .obs-photos, .obs-close-photos {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .obs-photos:has(> :only-child),
+    .obs-close-photos:has(> :only-child) {
+      grid-template-columns: minmax(0, 240px);
+    }
+    .obs-photos a, .obs-close-photos a {
+      display: block;
+      aspect-ratio: 4 / 3;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+    }
+    .obs-photos img, .obs-close-photos img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .obs-open { color: #b91c1c; }
+    .obs-closed { color: #0f766e; }
+    .obs-viewer {
+      position: fixed;
+      inset: 0;
+      z-index: 1080;
+      background: rgba(15, 23, 42, 0.88);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .obs-viewer img { max-width: 100%; max-height: 88vh; object-fit: contain; border-radius: 8px; }
+    @media (min-width: 860px) {
+      .obs-filters { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
     .home-stats, .home-links {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -754,6 +809,9 @@
       <button type="button" class="side-link" id="navInspections" onclick="switchView('pending')">
         <i class="fa-solid fa-clipboard-check"></i> Inspections
       </button>
+      <button type="button" class="side-link" id="navObservations" onclick="switchView('observations')">
+        <i class="fa-solid fa-binoculars"></i> Observations
+      </button>
       <button type="button" class="side-link" id="navEmployees" onclick="switchView('induction')">
         <i class="fa-solid fa-users"></i> Employee Data
       </button>
@@ -1245,6 +1303,41 @@
       </div>
     </div>
 
+    <div id="viewObservations" style="display: none;">
+      <div class="obs-filters">
+        <label class="obs-wide">Search
+          <input id="obsSearch" class="form-control form-control-sm" type="search" placeholder="Ref. no., title, or description" oninput="renderObservations()">
+        </label>
+        <label>Date from
+          <input id="obsFrom" class="form-control form-control-sm" type="date" onchange="renderObservations()">
+        </label>
+        <label>Date to
+          <input id="obsTo" class="form-control form-control-sm" type="date" onchange="renderObservations()">
+        </label>
+        <label>Status
+          <select id="obsStatus" class="form-select form-select-sm" onchange="renderObservations()">
+            <option value="all">All</option>
+            <option value="open">Open</option>
+            <option value="closed">Closed</option>
+          </select>
+        </label>
+        <label>Contractor / Subcontractor
+          <select id="obsContractor" class="form-select form-select-sm" onchange="renderObservations()"></select>
+        </label>
+        <label>Zone
+          <select id="obsZone" class="form-select form-select-sm" onchange="renderObservations()"></select>
+        </label>
+        <label>Building / Cluster
+          <select id="obsBuilding" class="form-select form-select-sm" onchange="renderObservations()"></select>
+        </label>
+      </div>
+      <div class="small text-muted mb-2 px-1" id="obsCount"></div>
+      <div id="obsList"></div>
+    </div>
+    <div id="obsViewer" class="obs-viewer" style="display: none;" onclick="closeObservationPhoto()">
+      <img id="obsViewerImage" alt="Observation photo">
+    </div>
+
     <!-- VIEW C: EMPLOYEE DATA -->
     <div id="viewInduction" style="display: none;">
       <div class="d-flex gap-2 mb-3 align-items-stretch">
@@ -1425,6 +1518,36 @@
     </div>
   </div>
 
+  <div class="modal fade" id="obsCloseModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header border-bottom-0 pb-0">
+          <h6 class="modal-title fw-bold" id="obsCloseTitle">Close observation</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="p-2 mb-3 bg-light rounded border">
+            <div class="small text-muted" id="obsCloseRef"></div>
+            <div class="fw-bold small mt-1" id="obsCloseFinding"></div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold" for="obsCloseResponse">Closeout response</label>
+            <textarea class="form-control form-control-sm" id="obsCloseResponse" rows="3" maxlength="2000" placeholder="What was done to close this observation?"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold" for="obsClosePhotos">Closeout pictures</label>
+            <input id="obsClosePhotos" class="form-control form-control-sm" type="file" accept="image/*" multiple onchange="previewObservationClosePhotos(this)">
+            <div class="small text-muted mt-1">Up to 3 pictures.</div>
+            <div id="obsClosePreview" class="obs-close-photos"></div>
+          </div>
+          <button type="button" class="btn btn-portal-primary w-100 py-2" id="obsCloseSave" onclick="submitObservationClose()">
+            <i class="fa-solid fa-check me-1"></i> Submit closeout
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== 3. CLOSEOUT ACTION MODAL ==================== -->
   <div class="modal fade" id="closeoutModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -1481,10 +1604,14 @@
     let genModalObj = null;
     let activeCategory = "ALL";
     let activeGeneratorSub = "ALL";
+    let obsCloseModal = null;
+    let observationRecords = [];
+    let observationCloseTarget = null;
     let searchQueries = { ALL: "", Generator: "", Equipment: "", Scaffolding: "" };
 
     document.addEventListener("DOMContentLoaded", () => {
       modalObj = new bootstrap.Modal(document.getElementById('closeoutModal'));
+      obsCloseModal = new bootstrap.Modal(document.getElementById('obsCloseModal'));
       equipModalObj = new bootstrap.Modal(document.getElementById('equipmentUpdateModal'));
       genModalObj = new bootstrap.Modal(document.getElementById('generatorUpdateModal'));
 
@@ -1592,19 +1719,22 @@
       if (viewName === 'team' && !isTeamAdmin()) viewName = 'home';
       document.getElementById('viewHome').style.display = viewName === 'home' ? 'block' : 'none';
       document.getElementById('viewPending').style.display = viewName === 'pending' ? 'block' : 'none';
+      document.getElementById('viewObservations').style.display = viewName === 'observations' ? 'block' : 'none';
       document.getElementById('viewNew').style.display = viewName === 'new' ? 'block' : 'none';
       document.getElementById('viewInduction').style.display = viewName === 'induction' ? 'block' : 'none';
       document.getElementById('viewChat').style.display = viewName === 'chat' ? 'block' : 'none';
       document.getElementById('viewTeam').style.display = viewName === 'team' ? 'block' : 'none';
       document.getElementById('navHome').classList.toggle('active', viewName === 'home');
       document.getElementById('navInspections').classList.toggle('active', viewName === 'pending' || viewName === 'new');
+      document.getElementById('navObservations').classList.toggle('active', viewName === 'observations');
       document.getElementById('navEmployees').classList.toggle('active', viewName === 'induction');
       document.getElementById('navChat').classList.toggle('active', viewName === 'chat');
       document.getElementById('navTeam').classList.toggle('active', viewName === 'team');
-      const titles = { home: "Home", pending: "Inspections", induction: "Employee Data", new: "New Inspection", chat: "Chat", team: "Team" };
+      const titles = { home: "Home", pending: "Inspections", observations: "Observations", induction: "Employee Data", new: "New Inspection", chat: "Chat", team: "Team" };
       document.getElementById('pageTitle').innerText = titles[viewName] || "Home";
       closeSideNav();
       if (viewName === 'chat') startChat();
+      if (viewName === 'observations') loadObservations();
       if (viewName === 'team') loadTeamMembers();
       if ((viewName === 'home' || viewName === 'pending') && !generatorRecords.length && !equipmentRecords.length && !scaffoldRecords.length) {
         fetchRegisters();
@@ -2846,6 +2976,221 @@
     let chatPeopleBusy = false;
     let chatThreadBusy = false;
     let chatPeopleCache = [];
+
+    function obsStatusKey(value) {
+      const text = String(value || "").trim().toLowerCase();
+      return text === "closed" || text === "close" ? "closed" : "open";
+    }
+
+    function loadObservations() {
+      if (!activeUser || !activeUser.token) {
+        document.getElementById("obsList").innerHTML = '<div class="card card-custom p-4 text-center">Sign out, then sign in again to open observations.</div>';
+        return;
+      }
+      document.getElementById("obsList").innerHTML = '<div class="card card-custom p-4 text-center text-muted">Loading observations...</div>';
+      callApiPost("observationList", { token: activeUser.token })
+        .then(function (res) {
+          if (!res.success) {
+            document.getElementById("obsList").innerHTML = '<div class="card card-custom p-4 text-center text-danger small">' + escapeHtml(res.message || "Could not load observations.") + "</div>";
+            return;
+          }
+          observationRecords = res.records || [];
+          fillObservationFilters();
+          renderObservations();
+        })
+        .catch(function () {
+          document.getElementById("obsList").innerHTML = '<div class="card card-custom p-4 text-center text-danger small">Could not load observations.</div>';
+        });
+    }
+
+    function fillObservationSelect(id, values) {
+      const select = document.getElementById(id);
+      const current = select.value;
+      const unique = values.filter(function (value, index, list) {
+        return value && list.indexOf(value) === index;
+      }).sort(function (a, b) { return a.localeCompare(b); });
+      select.innerHTML = '<option value="">All</option>' + unique.map(function (value) {
+        return '<option value="' + escapeHtml(value) + '">' + escapeHtml(value) + "</option>";
+      }).join("");
+      if (unique.indexOf(current) !== -1) select.value = current;
+    }
+
+    function fillObservationFilters() {
+      fillObservationSelect("obsContractor", observationRecords.map(function (row) { return row.contractor; }));
+      fillObservationSelect("obsZone", observationRecords.map(function (row) { return row.zone; }));
+      fillObservationSelect("obsBuilding", observationRecords.map(function (row) { return row.building; }));
+    }
+
+    function filteredObservations() {
+      const query = document.getElementById("obsSearch").value.trim().toLowerCase();
+      const from = document.getElementById("obsFrom").value;
+      const to = document.getElementById("obsTo").value;
+      const status = document.getElementById("obsStatus").value;
+      const contractor = document.getElementById("obsContractor").value;
+      const zone = document.getElementById("obsZone").value;
+      const building = document.getElementById("obsBuilding").value;
+      return observationRecords.filter(function (row) {
+        if (status !== "all" && obsStatusKey(row.status) !== status) return false;
+        if (contractor && row.contractor !== contractor) return false;
+        if (zone && row.zone !== zone) return false;
+        if (building && row.building !== building) return false;
+        if (from && (!row.date || row.date < from)) return false;
+        if (to && (!row.date || row.date > to)) return false;
+        if (!query) return true;
+        const haystack = [row.ref, row.title, row.description, row.contractor, row.zone, row.building, row.submittedBy].join(" ").toLowerCase();
+        return haystack.indexOf(query) !== -1;
+      });
+    }
+
+    function observationPhotoHtml(photo) {
+      const openUrl = escapeHtml(photo.openUrl || "");
+      if (!photo.imageUrl) {
+        return '<a href="' + openUrl + '" target="_blank" rel="noopener"><span class="small text-muted d-flex h-100 align-items-center justify-content-center">Open photo</span></a>';
+      }
+      return '<a href="' + openUrl + '" onclick="openObservationPhoto(event, this)"><img src="' + escapeHtml(photo.imageUrl) + '" alt="Observation photo" onerror="observationPhotoBackup(this)"></a>';
+    }
+
+    function observationPhotoBackup(img) {
+      const link = img.parentElement;
+      img.remove();
+      link.innerHTML = '<span class="small text-muted d-flex h-100 align-items-center justify-content-center">Open photo</span>';
+    }
+
+    function openObservationPhoto(event, link) {
+      const img = link.querySelector("img");
+      if (!img) return;
+      event.preventDefault();
+      document.getElementById("obsViewerImage").src = img.src;
+      document.getElementById("obsViewer").style.display = "flex";
+    }
+
+    function closeObservationPhoto() {
+      document.getElementById("obsViewer").style.display = "none";
+      document.getElementById("obsViewerImage").src = "";
+    }
+
+    function renderObservations() {
+      const rows = filteredObservations();
+      const box = document.getElementById("obsList");
+      document.getElementById("obsCount").innerText = rows.length + " observation" + (rows.length === 1 ? "" : "s");
+      box.innerHTML = "";
+      if (!rows.length) {
+        box.innerHTML = '<div class="card card-custom p-4 text-center text-muted">No observations match these filters.</div>';
+        return;
+      }
+      rows.forEach(function (row) {
+        const closed = obsStatusKey(row.status) === "closed";
+        const card = document.createElement("article");
+        card.className = "card card-custom p-3 mb-3";
+        const photos = (row.photos || []).map(observationPhotoHtml).join("");
+        const closePhotos = (row.closePhotos || []).map(observationPhotoHtml).join("");
+        card.innerHTML = '<div class="d-flex justify-content-between gap-2"><div><div class="small text-muted">' + escapeHtml(row.ref) + " · " + escapeHtml(row.when || row.date) + '</div><div class="fw-bold mt-1">' + escapeHtml(row.title || "Observation") + '</div></div><div class="small fw-bold ' + (closed ? "obs-closed" : "obs-open") + '">' + (closed ? "Closed" : "Open") + "</div></div>"
+          + '<div class="small mt-2">' + escapeHtml(row.contractor) + (row.zone ? " · " + escapeHtml(row.zone) : "") + (row.building ? " · " + escapeHtml(row.building) : "") + "</div>"
+          + (row.villa ? '<div class="small text-muted">Villa / Part: ' + escapeHtml(row.villa) + "</div>" : "")
+          + '<div class="mt-2">' + escapeHtml(row.description) + "</div>"
+          + (photos ? '<div class="obs-photos">' + photos + "</div>" : "")
+          + '<div class="small text-muted mt-2">Responsible: ' + escapeHtml(row.responsible || "-") + "<br>Submitted by: " + escapeHtml(row.submittedBy || "-") + "</div>"
+          + (row.closeout ? '<div class="mt-2 p-2 bg-light rounded border"><div class="small fw-bold">Closeout response</div><div class="small">' + escapeHtml(row.closeout) + '</div><div class="small text-muted">' + escapeHtml(row.closedBy || "") + "</div>" + (closePhotos ? '<div class="obs-close-photos">' + closePhotos + "</div>" : "") + "</div>" : "")
+          + (closed ? "" : '<button type="button" class="btn btn-sm btn-portal-primary mt-2">Close observation</button>');
+        const button = card.querySelector("button");
+        if (button) button.onclick = function () { openObservationClose(row); };
+        box.appendChild(card);
+      });
+    }
+
+    function openObservationClose(row) {
+      observationCloseTarget = row;
+      document.getElementById("obsCloseTitle").innerText = row.ref || "Close observation";
+      document.getElementById("obsCloseRef").innerText = [row.contractor, row.zone, row.building].filter(Boolean).join(" · ");
+      document.getElementById("obsCloseFinding").innerText = row.title || row.description || "";
+      document.getElementById("obsCloseResponse").value = "";
+      document.getElementById("obsClosePhotos").value = "";
+      document.getElementById("obsClosePreview").innerHTML = "";
+      obsCloseModal.show();
+    }
+
+    function previewObservationClosePhotos(input) {
+      const box = document.getElementById("obsClosePreview");
+      box.innerHTML = "";
+      Array.prototype.slice.call(input.files || []).slice(0, 3).forEach(function (file) {
+        const url = URL.createObjectURL(file);
+        const link = document.createElement("a");
+        link.href = url;
+        link.onclick = function (event) { openObservationPhoto(event, link); };
+        const img = document.createElement("img");
+        img.alt = "Closeout picture";
+        img.src = url;
+        link.appendChild(img);
+        box.appendChild(link);
+      });
+    }
+
+    function observationFileToJpeg_(file) {
+      return new Promise(function (resolve, reject) {
+        const image = new Image();
+        const url = URL.createObjectURL(file);
+        image.onload = function () {
+          const max = 960;
+          const scale = Math.min(1, max / Math.max(image.width, image.height));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(image.width * scale));
+          canvas.height = Math.max(1, Math.round(image.height * scale));
+          canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+          URL.revokeObjectURL(url);
+          let quality = 0.72;
+          let data = canvas.toDataURL("image/jpeg", quality);
+          while (data.length > 100000 && quality > 0.4) {
+            quality -= 0.08;
+            data = canvas.toDataURL("image/jpeg", quality);
+          }
+          resolve(data);
+        };
+        image.onerror = function () {
+          URL.revokeObjectURL(url);
+          reject(new Error("Could not read the picture."));
+        };
+        image.src = url;
+      });
+    }
+
+    function submitObservationClose() {
+      const row = observationCloseTarget;
+      if (!row || !activeUser || !activeUser.token) return;
+      const response = document.getElementById("obsCloseResponse").value.trim();
+      if (!response) {
+        alert("Write the closeout response first.");
+        return;
+      }
+      const input = document.getElementById("obsClosePhotos");
+      const files = Array.prototype.slice.call(input.files || []).slice(0, 3);
+      const button = document.getElementById("obsCloseSave");
+      button.disabled = true;
+      Promise.all(files.map(observationFileToJpeg_))
+        .then(function (images) {
+          return callApiPost("observationClose", {
+            token: activeUser.token,
+            payload: JSON.stringify({
+              sheetRow: row.sheetRow,
+              ref: row.ref,
+              response: response,
+              images: images
+            })
+          });
+        })
+        .then(function (res) {
+          button.disabled = false;
+          if (!res.success) {
+            alert(res.message || "Could not close this observation.");
+            return;
+          }
+          obsCloseModal.hide();
+          loadObservations();
+        })
+        .catch(function (err) {
+          button.disabled = false;
+          alert(err && err.message ? err.message : "Could not close this observation.");
+        });
+    }
 
     function isTeamAdmin() {
       return String((activeUser && activeUser.role) || "").trim().toLowerCase() === "hse dc";

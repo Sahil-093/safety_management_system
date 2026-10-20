@@ -92,6 +92,10 @@ function apiResponse_(params) {
       result = saveTeamMember(params.token || "", payload);
     } else if (params.action === "teamRemove") {
       result = removeTeamMember(params.token || "", params.username || "");
+    } else if (params.action === "observationList") {
+      result = listObservations(params.token || "");
+    } else if (params.action === "observationClose") {
+      result = closeObservation(params.token || "", payload);
     } else {
       result = { success: false, message: "Unknown action." };
     }
