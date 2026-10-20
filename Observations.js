@@ -225,22 +225,30 @@ function observationEnsureColumn_(sheet, header, name) {
   return col - 1;
 }
 
-function observationCloseFolder_() {
-  const folders = DriveApp.getFoldersByName(OBSERVATION_PHOTO_FOLDER);
+function observationFolder_(name) {
+  const folders = DriveApp.getFoldersByName(name);
   if (folders.hasNext()) return folders.next();
-  return DriveApp.createFolder(OBSERVATION_PHOTO_FOLDER);
+  return DriveApp.createFolder(name);
 }
 
-function observationSavePhoto_(ref, index, image) {
+function observationCode_(contractor) {
+  const letters = observationText_(contractor).toUpperCase().replace(/[^A-Z]/g, "");
+  return (letters + "XXX").slice(0, 3);
+}
+
+function observationSavePhoto_(ref, index, image, folderName) {
   const raw = String(image || "").replace(/^data:image\/\w+;base64,/, "");
   if (!raw) return { url: "" };
   if (raw.length > 120000) return { success: false, message: "A picture is too large. Choose a smaller photo." };
-  const folder = observationCloseFolder_();
+  const folder = observationFolder_(folderName || OBSERVATION_PHOTO_FOLDER);
   const safeRef = String(ref || "observation").replace(/[^\w.-]/g, "").slice(0, 40) || "observation";
   const name = safeRef + "-" + (index + 1) + "-" + new Date().getTime() + ".jpg";
   const file = folder.createFile(Utilities.newBlob(Utilities.base64Decode(raw), "image/jpeg", name));
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  return { url: "https://lh3.googleusercontent.com/d/" + file.getId() + "=w800" };
+  return {
+    url: "https://lh3.googleusercontent.com/d/" + file.getId() + "=w800",
+    id: file.getId()
+  };
 }
 
 function closeObservation(token, form) {
@@ -285,6 +293,91 @@ function closeObservation(token, form) {
       lock.releaseLock();
     }
     return { success: true, message: "Observation " + currentRef + " closed." };
+  } catch (err) {
+    const message = String(err);
+    if (/permission|access|authorization|drive/i.test(message)) {
+      return { success: false, message: "Share the observations sheet with the portal Google account as Editor, and allow Drive if a photo was added." };
+    }
+    return { success: false, message: message };
+  }
+}
+
+function createObservation(token, form) {
+  const actor = chatActor_(token);
+  if (!actor) return { success: false, message: "Sign in again to issue an observation." };
+  const incoming = form || {};
+  const contractor = observationText_(incoming.contractor);
+  const zone = observationText_(incoming.zone);
+  const building = observationText_(incoming.building);
+  const title = observationText_(incoming.title);
+  const villa = observationText_(incoming.villa);
+  const description = observationText_(incoming.description);
+  const responsible = observationText_(incoming.responsible);
+  const email = observationText_(incoming.email);
+  if (!contractor) return { success: false, message: "Enter the contractor or subcontractor." };
+  if (!zone) return { success: false, message: "Enter the zone." };
+  if (!title) return { success: false, message: "Enter the observation title." };
+  if (!description) return { success: false, message: "Enter the observation description." };
+  if (title.length > 200 || description.length > 2000 || contractor.length > 80 || zone.length > 40 || building.length > 80 || villa.length > 80 || responsible.length > 80 || email.length > 120) {
+    return { success: false, message: "One of the fields is too long." };
+  }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { success: false, message: "Enter a valid email, or leave it blank." };
+  }
+  try {
+    const sheet = observationSheet_();
+    if (!sheet) return { success: false, message: "Observations sheet was not found." };
+    const header = observationHeader_(sheet);
+    const refCol = observationCol_(header.map, "ref. no.");
+    if (refCol < 0 || observationCol_(header.map, "status") < 0) {
+      return { success: false, message: "Observation columns were not found." };
+    }
+    const images = Array.isArray(incoming.images) ? incoming.images.slice(0, 3) : [];
+    const photoUrls = [];
+    for (let i = 0; i < images.length; i++) {
+      const saved = observationSavePhoto_("issue", i, images[i], "SBARC Observations");
+      if (saved && saved.success === false) return saved;
+      if (saved && saved.id) photoUrls.push("https://drive.google.com/open?id=" + saved.id);
+    }
+    const lock = LockService.getScriptLock();
+    lock.waitLock(15000);
+    let ref = "";
+    try {
+      const last = sheet.getLastRow();
+      let max = 0;
+      if (last >= 2) {
+        const refs = sheet.getRange(2, refCol + 1, last - 1, 1).getValues();
+        refs.forEach(function (item) {
+          const match = observationText_(item[0]).match(/(\d+)\s*$/);
+          if (match) max = Math.max(max, parseInt(match[1], 10) || 0);
+        });
+      }
+      ref = "SO-MAK-" + observationCode_(contractor) + "-" + ("0000" + (max + 1)).slice(-4);
+      const width = Math.max(sheet.getLastColumn(), header.headers.length, 1);
+      const rowValues = [];
+      for (let c = 0; c < width; c++) rowValues.push("");
+      const put = function (name, value) {
+        const col = observationCol_(header.map, name);
+        if (col >= 0 && col < rowValues.length) rowValues[col] = value;
+      };
+      put("timestamp", new Date());
+      put("ref. no.", ref);
+      put("status", "Open");
+      put("contractor/subcontractor", contractor);
+      put("zone", zone);
+      put("building/cluster", building);
+      put("observation title", title);
+      put("villa/part", villa);
+      put("observation description", description);
+      if (photoUrls.length) put("photos", photoUrls.join("\n"));
+      put("responsible person name", responsible);
+      put("email address", email);
+      put("submitted by", actor.name);
+      sheet.appendRow(rowValues);
+    } finally {
+      lock.releaseLock();
+    }
+    return { success: true, ref: ref, message: "Observation " + ref + " issued." };
   } catch (err) {
     const message = String(err);
     if (/permission|access|authorization|drive/i.test(message)) {

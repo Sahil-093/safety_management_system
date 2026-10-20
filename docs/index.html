@@ -1303,6 +1303,52 @@
     </div>
 
     <div id="viewObservations" style="display: none;">
+      <div class="d-flex justify-content-end mb-2">
+        <button type="button" class="btn btn-sm btn-portal-primary" onclick="toggleObservationIssue()">+ Issue Observation</button>
+      </div>
+      <div id="obsIssueCard" class="card card-custom p-3 mb-3" style="display: none;">
+        <div class="fw-bold mb-1">Issue observation</div>
+        <div class="small text-muted mb-3">Status is set to Open. The reference number is assigned when you save.</div>
+        <div class="obs-filters">
+          <label>Contractor / Subcontractor
+            <input id="obsIssueContractor" class="form-control form-control-sm" list="obsIssueContractors" maxlength="80" autocomplete="off">
+            <datalist id="obsIssueContractors"></datalist>
+          </label>
+          <label>Zone
+            <input id="obsIssueZone" class="form-control form-control-sm" list="obsIssueZones" maxlength="40" autocomplete="off">
+            <datalist id="obsIssueZones"></datalist>
+          </label>
+          <label>Building / Cluster
+            <input id="obsIssueBuilding" class="form-control form-control-sm" list="obsIssueBuildings" maxlength="80" autocomplete="off">
+            <datalist id="obsIssueBuildings"></datalist>
+          </label>
+          <label>Villa / Part
+            <input id="obsIssueVilla" class="form-control form-control-sm" maxlength="80" autocomplete="off">
+          </label>
+          <label class="obs-wide">Observation title
+            <input id="obsIssueTitle" class="form-control form-control-sm" maxlength="200" autocomplete="off">
+          </label>
+          <label class="obs-wide">Observation description
+            <textarea id="obsIssueDescription" class="form-control form-control-sm" rows="3" maxlength="2000"></textarea>
+          </label>
+          <label>Responsible person
+            <input id="obsIssueResponsible" class="form-control form-control-sm" maxlength="80" autocomplete="off">
+          </label>
+          <label>Email address
+            <input id="obsIssueEmail" class="form-control form-control-sm" type="email" maxlength="120" autocomplete="off">
+          </label>
+          <label class="obs-wide">Pictures
+            <input id="obsIssuePhotos" class="form-control form-control-sm" type="file" accept="image/*" multiple onchange="previewObservationIssuePhotos(this)">
+            <span class="fw-normal">Up to 3 pictures.</span>
+            <div id="obsIssuePreview" class="obs-close-photos"></div>
+          </label>
+        </div>
+        <div id="obsIssueError" class="small text-danger mt-2" style="display: none;"></div>
+        <div class="d-flex gap-2 mt-3">
+          <button type="button" class="btn btn-portal-primary" id="obsIssueSave" onclick="submitObservationIssue()">Save observation</button>
+          <button type="button" class="btn btn-light border" onclick="toggleObservationIssue(false)">Cancel</button>
+        </div>
+      </div>
       <div class="obs-filters">
         <label class="obs-wide">Search
           <input id="obsSearch" class="form-control form-control-sm" type="search" placeholder="Ref. no., title, or description" oninput="renderObservations()">
@@ -3014,10 +3060,114 @@
       if (unique.indexOf(current) !== -1) select.value = current;
     }
 
+    function fillObservationDataList(id, values) {
+      const list = document.getElementById(id);
+      if (!list) return;
+      const unique = values.filter(function (value, index, all) {
+        return value && all.indexOf(value) === index;
+      }).sort(function (a, b) { return a.localeCompare(b); });
+      list.innerHTML = unique.map(function (value) {
+        return '<option value="' + escapeHtml(value) + '"></option>';
+      }).join("");
+    }
+
     function fillObservationFilters() {
       fillObservationSelect("obsContractor", observationRecords.map(function (row) { return row.contractor; }));
       fillObservationSelect("obsZone", observationRecords.map(function (row) { return row.zone; }));
       fillObservationSelect("obsBuilding", observationRecords.map(function (row) { return row.building; }));
+      fillObservationDataList("obsIssueContractors", observationRecords.map(function (row) { return row.contractor; }));
+      fillObservationDataList("obsIssueZones", observationRecords.map(function (row) { return row.zone; }));
+      fillObservationDataList("obsIssueBuildings", observationRecords.map(function (row) { return row.building; }));
+    }
+
+    function toggleObservationIssue(force) {
+      const card = document.getElementById("obsIssueCard");
+      const open = typeof force === "boolean" ? force : card.style.display === "none";
+      card.style.display = open ? "block" : "none";
+      if (!open) return;
+      ["obsIssueContractor", "obsIssueZone", "obsIssueBuilding", "obsIssueVilla", "obsIssueTitle", "obsIssueDescription", "obsIssueResponsible", "obsIssueEmail"].forEach(function (id) {
+        document.getElementById(id).value = "";
+      });
+      document.getElementById("obsIssuePhotos").value = "";
+      document.getElementById("obsIssuePreview").innerHTML = "";
+      document.getElementById("obsIssueError").style.display = "none";
+      fillObservationFilters();
+    }
+
+    function previewObservationIssuePhotos(input) {
+      const box = document.getElementById("obsIssuePreview");
+      box.innerHTML = "";
+      Array.prototype.slice.call(input.files || []).slice(0, 3).forEach(function (file) {
+        const url = URL.createObjectURL(file);
+        const link = document.createElement("a");
+        link.href = url;
+        link.onclick = function (event) { openObservationPhoto(event, link); };
+        const img = document.createElement("img");
+        img.alt = "Observation picture";
+        img.src = url;
+        link.appendChild(img);
+        box.appendChild(link);
+      });
+    }
+
+    function observationIssueError(message) {
+      const box = document.getElementById("obsIssueError");
+      box.innerText = message;
+      box.style.display = message ? "block" : "none";
+    }
+
+    function submitObservationIssue() {
+      if (!activeUser || !activeUser.token) {
+        observationIssueError("Sign out, then sign in again to issue an observation.");
+        return;
+      }
+      const contractor = document.getElementById("obsIssueContractor").value.trim();
+      const zone = document.getElementById("obsIssueZone").value.trim();
+      const building = document.getElementById("obsIssueBuilding").value.trim();
+      const title = document.getElementById("obsIssueTitle").value.trim();
+      const villa = document.getElementById("obsIssueVilla").value.trim();
+      const description = document.getElementById("obsIssueDescription").value.trim();
+      const responsible = document.getElementById("obsIssueResponsible").value.trim();
+      const email = document.getElementById("obsIssueEmail").value.trim();
+      if (!contractor) return observationIssueError("Enter the contractor or subcontractor.");
+      if (!zone) return observationIssueError("Enter the zone.");
+      if (!title) return observationIssueError("Enter the observation title.");
+      if (!description) return observationIssueError("Enter the observation description.");
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return observationIssueError("Enter a valid email, or leave it blank.");
+      observationIssueError("");
+      const files = Array.prototype.slice.call(document.getElementById("obsIssuePhotos").files || []).slice(0, 3);
+      const button = document.getElementById("obsIssueSave");
+      button.disabled = true;
+      Promise.all(files.map(observationFileToJpeg_))
+        .then(function (images) {
+          return callApiPost("observationIssue", {
+            token: activeUser.token,
+            payload: JSON.stringify({
+              contractor: contractor,
+              zone: zone,
+              building: building,
+              title: title,
+              villa: villa,
+              description: description,
+              responsible: responsible,
+              email: email,
+              images: images
+            })
+          });
+        })
+        .then(function (res) {
+          button.disabled = false;
+          if (!res.success) {
+            observationIssueError(res.message || "Could not issue this observation.");
+            return;
+          }
+          toggleObservationIssue(false);
+          loadObservations();
+        })
+        .catch(function (err) {
+          button.disabled = false;
+          observationIssueError(err && err.message ? err.message : "Could not issue this observation.");
+        });
     }
 
     function filteredObservations() {

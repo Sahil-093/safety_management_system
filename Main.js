@@ -96,6 +96,8 @@ function apiResponse_(params) {
       result = listObservations(params.token || "");
     } else if (params.action === "observationClose") {
       result = closeObservation(params.token || "", payload);
+    } else if (params.action === "observationIssue") {
+      result = createObservation(params.token || "", payload);
     } else {
       result = { success: false, message: "Unknown action." };
     }
