@@ -1521,7 +1521,7 @@
       <div class="d-flex gap-2 mb-3 align-items-stretch">
         <label class="search-box flex-grow-1" for="inductionSearch">
           <i class="fa-solid fa-magnifying-glass"></i>
-          <input id="inductionSearch" type="search" placeholder="Employee name, ID, or company" autocomplete="off" oninput="onInductionSearch(this.value)">
+          <input id="inductionSearch" type="search" placeholder="Employee name, ID, or company" autocomplete="off" oninput="onInductionSearch(this.value)" onkeydown="onInductionSearchKey(event)">
         </label>
         <button type="button" class="btn btn-portal-primary px-3" id="btnNewInduction" onclick="startNewInduction()">New+</button>
       </div>
@@ -2037,6 +2037,8 @@
 
     let inductionTimer = null;
     let inductionRecords = [];
+    let inductionRequest = 0;
+    let inductionTotal = 0;
 
     function showInductionPrompt() {
       const query = document.getElementById('inductionSearch').value.trim();
@@ -2050,30 +2052,42 @@
 
     function onInductionSearch(value) {
       clearTimeout(inductionTimer);
-      inductionTimer = setTimeout(function () { searchInduction(value); }, 300);
+      inductionTimer = setTimeout(function () { searchInduction(value); }, 500);
+    }
+
+    function onInductionSearchKey(event) {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      clearTimeout(inductionTimer);
+      searchInduction(event.target.value);
     }
 
     function searchInduction(value, onlySerial) {
       const query = String(value || "").trim();
       const box = document.getElementById('inductionResults');
+      const request = ++inductionRequest;
       if (query.length < 2) {
         showInductionPrompt();
         return;
       }
-      box.innerHTML = `<div class="text-center py-4"><div class="spinner-border spinner-border-sm" style="color: var(--primary-color);"></div></div>`;
+      box.innerHTML = `<div class="text-center py-4"><div class="spinner-border spinner-border-sm" style="color: var(--primary-color);"></div><div class="small text-muted mt-2">Searching ${escapeHtml(query)}...</div></div>`;
       callApi("inductionSearch", { q: query })
         .then(data => {
+          if (request !== inductionRequest) return;
           if (data && data.success === false) {
             box.innerHTML = `<div class="alert alert-danger small">${escapeHtml(data.message)}</div>`;
             return;
           }
           inductionRecords = (data && data.records) || [];
+          inductionTotal = Number(data && data.total) || inductionRecords.length;
           if (onlySerial) {
             inductionRecords = inductionRecords.filter(row => String(row.serial) === String(onlySerial));
+            inductionTotal = inductionRecords.length;
           }
           renderInductionCards(inductionRecords, query);
         })
         .catch(err => {
+          if (request !== inductionRequest) return;
           box.innerHTML = `<div class="alert alert-danger small">Could not search: ${escapeHtml(err.toString())}</div>`;
         });
     }
@@ -2170,6 +2184,9 @@
             <div class="id-print"><button type="button" class="btn btn-sm btn-light border" onclick="printIdCard(${index})">Print ID card</button></div>
           </div>` : ""}`;
       }).join("");
+      if (inductionTotal > records.length) {
+        box.insertAdjacentHTML("afterbegin", `<div class="alert alert-light border small py-2 mb-2">Showing ${records.length} of ${inductionTotal} matches. Type more of the name or ID to narrow the list.</div>`);
+      }
       paintInductionQr(box);
     }
 

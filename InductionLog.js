@@ -123,9 +123,11 @@ function inductionQueryHit_(name, id, q, qDigits) {
   return nameHit || idHit;
 }
 
+var INDUCTION_SEARCH_LIMIT = 60;
+
 function searchInductionLog(query) {
   const q = String(query || "").trim().toLowerCase();
-  if (q.length < 2) return [];
+  if (q.length < 2) return { records: [], total: 0 };
   const rows = readInductionRows_();
   const start = inductionHeaderIndex_(rows) + 1;
   const qDigits = q.replace(/\D/g, "");
@@ -176,7 +178,11 @@ function searchInductionLog(query) {
     extras.push(person);
   });
   extras.reverse();
-  return attachInductionPhotos_(publishRosterPhotos_(extras.concat(records).slice(0, 250)));
+  const all = extras.concat(records);
+  return {
+    records: attachInductionPhotos_(publishRosterPhotos_(all.slice(0, INDUCTION_SEARCH_LIMIT))),
+    total: all.length
+  };
 }
 
 function publishRosterPhotos_(records) {
