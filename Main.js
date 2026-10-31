@@ -138,6 +138,13 @@ function authenticateUser(username, pin) {
     const uPin = String(data[i][3]).trim();
     
     if (uName === username.trim().toLowerCase() && uPin === pin.trim()) {
+      let sameUsername = 0;
+      for (let r = 1; r < data.length; r++) {
+        if (String(data[r][2]).trim().toLowerCase() === uName) sameUsername++;
+      }
+      if (sameUsername > 1) {
+        return { success: false, message: "This username is used by more than one person. Ask HSE DC to give you a different username." };
+      }
       const assignedZonesStr = String(data[i][4]);
       const user = {
         id: data[i][0],
