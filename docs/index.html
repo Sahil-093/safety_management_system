@@ -1181,13 +1181,14 @@
             <div class="small fw-bold mb-2">Equipment 3rd Party</div>
             <div class="mb-2">
               <label class="form-label small fw-semibold">Status</label>
-              <select class="form-select form-select-sm" id="eqThird">
+              <select class="form-select form-select-sm" id="eqThird" onchange="syncEquipmentDates(this.id)">
                 <option>Valid</option>
                 <option>Expired</option>
                 <option>Not Available</option>
                 <option>NA</option>
               </select>
             </div>
+            <div data-dates-for="eqThird">
             <div class="mb-2">
               <label class="form-label small fw-semibold">Sticker No.</label>
               <input type="text" class="form-control form-control-sm" id="eqSticker">
@@ -1201,6 +1202,7 @@
                 <label class="form-label small fw-semibold">Date of Expiry</label>
                 <input type="date" class="form-control form-control-sm" id="eqExpiry">
               </div>
+            </div>
             </div>
           </div>
 
@@ -1217,29 +1219,31 @@
             <div class="small fw-bold mb-2">Licence</div>
             <div class="mb-2">
               <label class="form-label small fw-semibold">Status</label>
-              <select class="form-select form-select-sm" id="eqLicence">
+              <select class="form-select form-select-sm" id="eqLicence" onchange="syncEquipmentDates(this.id)">
                 <option>Valid</option>
                 <option>Expired</option>
                 <option>Not Available</option>
                 <option>NA</option>
               </select>
             </div>
+            <div data-dates-for="eqLicence">
             <label class="form-label small fw-semibold">Date of Expiry</label>
             <input type="date" class="form-control form-control-sm" id="eqLicenceExpiry">
+            </div>
           </div>
 
           <div class="bg-light p-3 rounded-3 mb-3 border">
             <div class="small fw-bold mb-2">Operator 3rd Party</div>
             <div class="mb-2">
               <label class="form-label small fw-semibold">Status</label>
-              <select class="form-select form-select-sm" id="eqOpThird">
+              <select class="form-select form-select-sm" id="eqOpThird" onchange="syncEquipmentDates(this.id)">
                 <option>Valid</option>
                 <option>Expired</option>
                 <option>Not Available</option>
                 <option>NA</option>
               </select>
             </div>
-            <div class="row g-2">
+            <div class="row g-2" data-dates-for="eqOpThird">
               <div class="col-6">
                 <label class="form-label small fw-semibold">Date of Issue</label>
                 <input type="date" class="form-control form-control-sm" id="eqOpIssue">
@@ -1648,25 +1652,29 @@
           </div>
           <div class="bg-light p-3 rounded-3 mb-3 border">
             <div class="small fw-bold mb-2">Equipment 3rd Party</div>
-            <select class="form-select form-select-sm mb-2" id="updThird"><option>Valid</option><option>Expired</option><option>Not Available</option><option>NA</option></select>
+            <select class="form-select form-select-sm mb-2" id="updThird" onchange="syncEquipmentDates(this.id)"><option>Valid</option><option>Expired</option><option>Not Available</option><option>NA</option></select>
+            <div data-dates-for="updThird">
             <input type="text" class="form-control form-control-sm mb-2" id="updSticker" placeholder="Sticker No.">
             <div class="row g-2">
               <div class="col-6"><label class="form-label small">Date of Issue</label><input type="date" class="form-control form-control-sm" id="updIssue"></div>
               <div class="col-6"><label class="form-label small">Date of Expiry</label><input type="date" class="form-control form-control-sm" id="updExpiry"></div>
+            </div>
             </div>
           </div>
           <div class="mb-2"><label class="form-label small fw-semibold">Operator / Driver</label><input type="text" class="form-control form-control-sm" id="updOperator"></div>
           <div class="mb-3"><label class="form-label small fw-semibold">Iqama / ID</label><input type="text" class="form-control form-control-sm" id="updIqama"></div>
           <div class="bg-light p-3 rounded-3 mb-3 border">
             <div class="small fw-bold mb-2">Licence</div>
-            <select class="form-select form-select-sm mb-2" id="updLicence"><option>Valid</option><option>Expired</option><option>Not Available</option><option>NA</option></select>
+            <select class="form-select form-select-sm mb-2" id="updLicence" onchange="syncEquipmentDates(this.id)"><option>Valid</option><option>Expired</option><option>Not Available</option><option>NA</option></select>
+            <div data-dates-for="updLicence">
             <label class="form-label small">Date of Expiry</label>
             <input type="date" class="form-control form-control-sm" id="updLicenceExpiry">
+            </div>
           </div>
           <div class="bg-light p-3 rounded-3 mb-3 border">
             <div class="small fw-bold mb-2">Operator 3rd Party</div>
-            <select class="form-select form-select-sm mb-2" id="updOpThird"><option>Valid</option><option>Expired</option><option>Not Available</option><option>NA</option></select>
-            <div class="row g-2">
+            <select class="form-select form-select-sm mb-2" id="updOpThird" onchange="syncEquipmentDates(this.id)"><option>Valid</option><option>Expired</option><option>Not Available</option><option>NA</option></select>
+            <div class="row g-2" data-dates-for="updOpThird">
               <div class="col-6"><label class="form-label small">Date of Issue</label><input type="date" class="form-control form-control-sm" id="updOpIssue"></div>
               <div class="col-6"><label class="form-label small">Date of Expiry</label><input type="date" class="form-control form-control-sm" id="updOpExpiry"></div>
             </div>
@@ -2746,6 +2754,17 @@
         });
     }
 
+    function syncEquipmentDates(selectId) {
+      const select = document.getElementById(selectId);
+      if (!select) return;
+      const status = String(select.value || "").trim().toLowerCase();
+      const none = status === "not available" || status === "na";
+      document.querySelectorAll('[data-dates-for="' + selectId + '"]').forEach(box => {
+        box.style.display = none ? "none" : "";
+        if (none) box.querySelectorAll("input").forEach(input => { input.value = ""; });
+      });
+    }
+
     function openEquipmentUpdate(sheetRow) {
       const row = equipmentRecords.find(item => item.sheetRow === sheetRow);
       if (!row) return;
@@ -2766,6 +2785,7 @@
       setSelectValue('updOpThird', row.operatorThirdParty);
       document.getElementById('updOpIssue').value = row.operatorIssueIso || "";
       document.getElementById('updOpExpiry').value = row.operatorExpiryIso || "";
+      ["updThird", "updLicence", "updOpThird"].forEach(syncEquipmentDates);
       setSelectValue('updHerc', row.herc);
       setSelectValue('updInsurance', row.insurance);
       document.getElementById('updContact').value = row.contact || "";
@@ -3224,6 +3244,7 @@
           if (res.success) {
             alert(res.message);
             document.getElementById("equipmentForm").reset();
+            ["eqThird", "eqLicence", "eqOpThird"].forEach(syncEquipmentDates);
             if (activeUser) document.getElementById("eqInspectedBy").value = activeUser.name;
             switchView("pending");
           } else {
