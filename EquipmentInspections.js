@@ -187,6 +187,8 @@ function updateEquipmentRecord(formData, user) {
       equipSheet.getRange(row, pair[0]).setValue(pair[1] || "");
     });
     writeOutOfService_(equipSheet, row, formData.outOfService);
+    const headerRow = equipmentHeaderIndex_(equipSheet.getRange(1, 1, Math.min(equipSheet.getLastRow(), 6), equipSheet.getLastColumn()).getValues());
+    stampRowUpdate_(equipSheet, row, headerRow + 1, updaterName_(user));
     return { success: true, message: "Equipment record updated." };
   } catch (err) {
     return { success: false, message: err.toString() };

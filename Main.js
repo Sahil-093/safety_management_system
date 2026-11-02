@@ -13,6 +13,40 @@ function teamSheet_() {
   return teamSpreadsheet_().getSheetByName("HSE_TEAM");
 }
 
+var UPDATED_BY_HEADER = "Updated By";
+var UPDATED_AT_HEADER = "Updated Date & Time";
+
+// Columns are found by header name and added after the last used column, never before minColumn.
+function stampRowUpdate_(sheet, row, headerRow, who, minColumn) {
+  const width = Math.max(sheet.getLastColumn(), minColumn || 0, 1);
+  if (width > sheet.getMaxColumns()) sheet.insertColumnsAfter(sheet.getMaxColumns(), width - sheet.getMaxColumns());
+  const header = sheet.getRange(headerRow, 1, 1, width).getValues()[0].map(function (cell) {
+    return String(cell || "").trim().toLowerCase();
+  });
+  let byCol = header.indexOf(UPDATED_BY_HEADER.toLowerCase()) + 1;
+  let atCol = header.indexOf(UPDATED_AT_HEADER.toLowerCase()) + 1;
+  let next = width;
+  const need = (byCol ? 0 : 1) + (atCol ? 0 : 1);
+  if (need && next + need > sheet.getMaxColumns()) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), next + need - sheet.getMaxColumns());
+  }
+  if (!byCol) {
+    byCol = ++next;
+    sheet.getRange(headerRow, byCol).setValue(UPDATED_BY_HEADER).setFontWeight("bold");
+  }
+  if (!atCol) {
+    atCol = ++next;
+    sheet.getRange(headerRow, atCol).setValue(UPDATED_AT_HEADER).setFontWeight("bold");
+  }
+  const stamp = Utilities.formatDate(new Date(), "Asia/Riyadh", "yyyy-MM-dd HH:mm");
+  sheet.getRange(row, byCol).setValue(String(who || "").trim());
+  sheet.getRange(row, atCol).setNumberFormat("@").setValue(stamp);
+}
+
+function updaterName_(user) {
+  return String((user && (user.name || user.username)) || "").trim();
+}
+
 // Web App entry point. action=... serves JSON for the mobile page.
 function doPost(e) {
   let params = {};
@@ -73,7 +107,7 @@ function apiResponse_(params) {
     } else if (params.action === "induction") {
       result = recordInduction(payload, user);
     } else if (params.action === "inductionUpdate") {
-      result = updateInductionRecord(payload);
+      result = updateInductionRecord(payload, user);
     } else if (params.action === "inductionDelete") {
       result = deleteInductionRecord(payload);
     } else if (params.action === "inductionPhoto") {

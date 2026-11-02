@@ -350,7 +350,7 @@ function recordInduction(formData, user) {
   }
 }
 
-function updateInductionRecord(formData) {
+function updateInductionRecord(formData, user) {
   try {
     const row = parseInt(formData.sheetRow, 10);
     const name = String(formData.name || "").trim();
@@ -383,6 +383,8 @@ function updateInductionRecord(formData) {
     sheet.getRange(row, 9).setValue(formData.company || "");
     sheet.getRange(row, 10).setValue(formData.trainer || "");
     sheet.getRange(row, 11).setValue(formData.notes || "");
+    const headerRow = inductionHeaderIndex_(sheet.getRange(1, 1, Math.min(sheet.getLastRow(), 6), 2).getValues());
+    stampRowUpdate_(sheet, row, headerRow + 1, updaterName_(user));
     return { success: true, message: "Induction updated." };
   } catch (err) {
     return inductionWriteError_(err);

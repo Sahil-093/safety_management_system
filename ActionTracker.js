@@ -95,6 +95,7 @@ function submitCloseout(formData, user) {
     sheet.getRange(row, 8).setValue(formData.status);
     sheet.getRange(row, 9).setValue(formData.remarks);
     sheet.getRange(row, 10).setValue(user.name + " (" + timeStamp + ")");
+    stampRowUpdate_(sheet, row, 1, updaterName_(user));
 
     return { 
       success: true, 

@@ -145,6 +145,7 @@ function saveTeamMember(token, form) {
     }
     book.sheet.getRange(rowNumber, 1, 1, 7).setNumberFormat("@");
     book.sheet.getRange(rowNumber, 1, 1, 7).setValues([[id, name, username, pin, zones, role, email]]);
+    stampRowUpdate_(book.sheet, rowNumber, 1, actor.name, 9);
     if (original && original !== username) chatRenameUser_(original, username, name);
     if (original && chatNorm_(actor.username) === chatNorm_(original)) {
       refreshChatSession_(token, username, name, role);
@@ -258,6 +259,7 @@ function saveProfile(token, form) {
     sheet.getRange(rowNumber, 2, 1, 3).setValues([[name, username, pin]]);
     sheet.getRange(rowNumber, 7).setNumberFormat("@").setValue(email);
     sheet.getRange(rowNumber, 8).setValue(photoUrl);
+    stampRowUpdate_(sheet, rowNumber, 1, name, 9);
     if (oldUsername !== username || teamText_(values[index][1]) !== name) {
       chatRenameUser_(oldUsername, username, name);
     }

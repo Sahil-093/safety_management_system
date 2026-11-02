@@ -146,6 +146,7 @@ function updateGeneratorRecord(formData, user) {
     sheet.getRange(row, 9).setValue(formData.feRemarks || "");
     sheet.getRange(row, 10).setValue(db);
     sheet.getRange(row, 11).setValue(formData.dbRemarks || "");
+    stampRowUpdate_(sheet, row, 1, updaterName_(user));
     return { success: true, message: "Generator status updated." };
   } catch (err) {
     return { success: false, message: String(err) };

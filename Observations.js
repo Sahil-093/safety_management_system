@@ -445,6 +445,7 @@ function closeObservation(token, form) {
       sheet.getRange(row, byCol + 1).setValue(actor.name + " (" + stamp + ")");
       sheet.getRange(row, emailCol + 1).setValue(observationActorEmail_(actor));
       if (photoUrls.length) sheet.getRange(row, photoCol + 1).setValue(photoUrls.join("\n"));
+      stampRowUpdate_(sheet, row, 1, actor.name);
     } finally {
       lock.releaseLock();
     }
