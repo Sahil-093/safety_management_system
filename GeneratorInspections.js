@@ -140,13 +140,19 @@ function updateGeneratorRecord(formData, user) {
       return { success: false, message: "Choose Valid, Not Available, or Expired for each item." };
     }
 
+    const before = rowSnapshot_(sheet, row);
     sheet.getRange(row, 6).setValue(drip);
     sheet.getRange(row, 7).setValue(formData.dripRemarks || "");
     sheet.getRange(row, 8).setValue(fe);
     sheet.getRange(row, 9).setValue(formData.feRemarks || "");
     sheet.getRange(row, 10).setValue(db);
     sheet.getRange(row, 11).setValue(formData.dbRemarks || "");
-    stampRowUpdate_(sheet, row, 1, updaterName_(user));
+    recordRowUpdate_(sheet, row, 1, before, {
+      who: updaterName_(user),
+      username: (user && user.username) || "",
+      section: "Generator",
+      record: [zone, cluster].filter(Boolean).join(" · ")
+    });
     return { success: true, message: "Generator status updated." };
   } catch (err) {
     return { success: false, message: String(err) };

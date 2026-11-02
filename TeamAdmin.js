@@ -143,9 +143,15 @@ function saveTeamMember(token, form) {
     if (!teamText_(book.sheet.getRange(1, 7).getValue())) {
       book.sheet.getRange(1, 7).setValue("Email").setFontWeight("bold");
     }
+    const before = rowSnapshot_(book.sheet, rowNumber);
     book.sheet.getRange(rowNumber, 1, 1, 7).setNumberFormat("@");
     book.sheet.getRange(rowNumber, 1, 1, 7).setValues([[id, name, username, pin, zones, role, email]]);
-    stampRowUpdate_(book.sheet, rowNumber, 1, actor.name, 9);
+    recordRowUpdate_(book.sheet, rowNumber, 1, before, {
+      who: actor.name,
+      username: actor.username,
+      section: original ? "Team" : "Team (new login)",
+      record: name + " (" + username + ")"
+    }, 9);
     if (original && original !== username) chatRenameUser_(original, username, name);
     if (original && chatNorm_(actor.username) === chatNorm_(original)) {
       refreshChatSession_(token, username, name, role);
@@ -255,11 +261,17 @@ function saveProfile(token, form) {
     if (photoUrl === null) photoUrl = teamText_(values[index][7]);
     teamHeader_(sheet, 7, "Email");
     teamHeader_(sheet, 8, "Photo");
+    const before = rowSnapshot_(sheet, rowNumber);
     sheet.getRange(rowNumber, 2, 1, 3).setNumberFormat("@");
     sheet.getRange(rowNumber, 2, 1, 3).setValues([[name, username, pin]]);
     sheet.getRange(rowNumber, 7).setNumberFormat("@").setValue(email);
     sheet.getRange(rowNumber, 8).setValue(photoUrl);
-    stampRowUpdate_(sheet, rowNumber, 1, name, 9);
+    recordRowUpdate_(sheet, rowNumber, 1, before, {
+      who: name,
+      username: username,
+      section: "Profile",
+      record: name + " (" + username + ")"
+    }, 9);
     if (oldUsername !== username || teamText_(values[index][1]) !== name) {
       chatRenameUser_(oldUsername, username, name);
     }

@@ -92,10 +92,16 @@ function submitCloseout(formData, user) {
     const row = parseInt(formData.rowIndex);
     const timeStamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm");
 
+    const before = rowSnapshot_(sheet, row);
     sheet.getRange(row, 8).setValue(formData.status);
     sheet.getRange(row, 9).setValue(formData.remarks);
     sheet.getRange(row, 10).setValue(user.name + " (" + timeStamp + ")");
-    stampRowUpdate_(sheet, row, 1, updaterName_(user));
+    recordRowUpdate_(sheet, row, 1, before, {
+      who: updaterName_(user),
+      username: (user && user.username) || "",
+      section: "Action Tracker",
+      record: String(formData.actionId || "")
+    });
 
     return { 
       success: true, 

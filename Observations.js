@@ -440,12 +440,18 @@ function closeObservation(token, form) {
     const lock = LockService.getScriptLock();
     lock.waitLock(10000);
     try {
+      const before = rowSnapshot_(sheet, row);
       sheet.getRange(row, statusCol + 1).setValue("Closed");
       sheet.getRange(row, responseCol + 1).setValue(response);
       sheet.getRange(row, byCol + 1).setValue(actor.name + " (" + stamp + ")");
       sheet.getRange(row, emailCol + 1).setValue(observationActorEmail_(actor));
       if (photoUrls.length) sheet.getRange(row, photoCol + 1).setValue(photoUrls.join("\n"));
-      stampRowUpdate_(sheet, row, 1, actor.name);
+      recordRowUpdate_(sheet, row, 1, before, {
+        who: actor.name,
+        username: actor.username,
+        section: "Observation",
+        record: currentRef
+      });
     } finally {
       lock.releaseLock();
     }

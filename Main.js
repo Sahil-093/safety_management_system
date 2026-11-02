@@ -47,6 +47,81 @@ function updaterName_(user) {
   return String((user && (user.name || user.username)) || "").trim();
 }
 
+var UPDATE_LOG_SHEET = "UPDATE_LOG";
+var UPDATE_LOG_HEADERS = ["Date & Time", "Updated By", "Username", "Section", "Sheet / Tab", "Row", "Record", "Changes"];
+var UPDATE_LOG_VALUE_MAX = 300;
+
+function rowSnapshot_(sheet, row) {
+  const width = sheet.getLastColumn();
+  if (!width || row > sheet.getMaxRows()) return [];
+  return sheet.getRange(row, 1, 1, width).getDisplayValues()[0];
+}
+
+function updateLogSheet_() {
+  const ss = teamSpreadsheet_();
+  let sheet = ss.getSheetByName(UPDATE_LOG_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(UPDATE_LOG_SHEET);
+    sheet.getRange(1, 1, 1, UPDATE_LOG_HEADERS.length).setValues([UPDATE_LOG_HEADERS]).setFontWeight("bold");
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function updateLogValue_(value) {
+  const text = String(value === undefined || value === null ? "" : value).trim();
+  if (!text) return "(blank)";
+  return text.length > UPDATE_LOG_VALUE_MAX ? text.slice(0, UPDATE_LOG_VALUE_MAX) + "..." : text;
+}
+
+// Login codes are never written to the log, only that they changed.
+function updateLogChanges_(headers, before, after) {
+  const skip = [UPDATED_BY_HEADER.toLowerCase(), UPDATED_AT_HEADER.toLowerCase()];
+  const changes = [];
+  const width = Math.max(headers.length, before.length, after.length);
+  for (let i = 0; i < width; i++) {
+    const label = String(headers[i] || "").trim() || "Column " + (i + 1);
+    const key = label.toLowerCase();
+    if (skip.indexOf(key) !== -1) continue;
+    const oldValue = String(before[i] === undefined ? "" : before[i]).trim();
+    const newValue = String(after[i] === undefined ? "" : after[i]).trim();
+    if (oldValue === newValue) continue;
+    if (key === "pin" || key === "login code") {
+      changes.push(label + ": changed");
+      continue;
+    }
+    changes.push(label + ": " + updateLogValue_(oldValue) + " → " + updateLogValue_(newValue));
+  }
+  return changes;
+}
+
+function logRowUpdate_(sheet, row, headerRow, before, info) {
+  const after = rowSnapshot_(sheet, row);
+  const width = Math.max(sheet.getLastColumn(), 1);
+  const headers = sheet.getRange(headerRow, 1, 1, width).getDisplayValues()[0];
+  const changes = updateLogChanges_(headers, before || [], after);
+  updateLogSheet_().appendRow([
+    Utilities.formatDate(new Date(), "Asia/Riyadh", "yyyy-MM-dd HH:mm:ss"),
+    info.who || "",
+    info.username || "",
+    info.section || "",
+    sheet.getParent().getName() + " / " + sheet.getName(),
+    row,
+    info.record || "",
+    changes.length ? changes.join("\n") : "No field changed"
+  ]);
+}
+
+// Overwrites the row's Updated By / Updated Date & Time and appends the full change to UPDATE_LOG.
+function recordRowUpdate_(sheet, row, headerRow, before, info, minColumn) {
+  stampRowUpdate_(sheet, row, headerRow, info.who, minColumn);
+  try {
+    logRowUpdate_(sheet, row, headerRow, before, info);
+  } catch (err) {
+    Logger.log("Update log failed: " + err);
+  }
+}
+
 // Web App entry point. action=... serves JSON for the mobile page.
 function doPost(e) {
   let params = {};

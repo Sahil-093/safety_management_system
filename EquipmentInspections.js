@@ -183,12 +183,18 @@ function updateEquipmentRecord(formData, user) {
       [21, formData.inspectedBy || (user && user.name) || ""],
       [22, formData.remarks]
     ];
+    const before = rowSnapshot_(equipSheet, row);
     values.forEach(function (pair) {
       equipSheet.getRange(row, pair[0]).setValue(pair[1] || "");
     });
     writeOutOfService_(equipSheet, row, formData.outOfService);
     const headerRow = equipmentHeaderIndex_(equipSheet.getRange(1, 1, Math.min(equipSheet.getLastRow(), 6), equipSheet.getLastColumn()).getValues());
-    stampRowUpdate_(equipSheet, row, headerRow + 1, updaterName_(user));
+    recordRowUpdate_(equipSheet, row, headerRow + 1, before, {
+      who: updaterName_(user),
+      username: (user && user.username) || "",
+      section: "Equipment",
+      record: [formData.equipmentType, formData.plate].filter(Boolean).join(" · ")
+    });
     return { success: true, message: "Equipment record updated." };
   } catch (err) {
     return { success: false, message: err.toString() };
